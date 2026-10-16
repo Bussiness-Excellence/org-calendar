@@ -12,7 +12,7 @@ its own people can see.
 - Web app: https://bussiness-excellence.github.io/org-calendar/
 - Android APK (latest): https://github.com/Bussiness-Excellence/org-calendar/releases/latest/download/OrgCalendar-test.apk
 
-Both are rebuilt automatically on every push to `main` (see `.github/workflows/build.yml`).
+Both are rebuilt automatically on every push to `main` (see `.github/workflows/`).
 
 ## How company data is kept apart
 

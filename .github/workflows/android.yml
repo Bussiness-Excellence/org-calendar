@@ -1,48 +1,24 @@
-# Builds the test web app (GitHub Pages) and an installable Android APK
-# (GitHub Releases) on every push to main.
-name: Build web and Android
+# Builds an installable Android APK and attaches it to a GitHub Release.
+name: Android APK
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'README.md'
+      - 'supabase/**'
+      - '.github/workflows/web.yml'
+      - '.github/workflows/android.yml'
   workflow_dispatch:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
-  group: build-${{ github.ref }}
+  group: android-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  web:
-    name: Web app
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npx expo export --platform web --output-dir dist
-      - name: Single-page app fallback
-        run: cp dist/index.html dist/404.html && touch dist/.nojekyll
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-      - id: deploy
-        uses: actions/deploy-pages@v4
-
   android:
     name: Android APK
     runs-on: ubuntu-latest
