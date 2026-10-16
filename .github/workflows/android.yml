@@ -8,7 +8,6 @@ on:
       - 'README.md'
       - 'supabase/**'
       - '.github/workflows/web.yml'
-      - '.github/workflows/android.yml'
   workflow_dispatch:
 
 permissions:
@@ -28,19 +27,30 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
       - run: npm ci
       - name: Generate the Android project
-        run: npx expo prebuild --platform android --no-install
+        run: |
+          set -o pipefail
+          if ! npx expo prebuild --platform android --no-install 2>&1 | tee prebuild.log; then
+            echo "::error title=Prebuild failed::$(tail -40 prebuild.log | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
+            exit 1
+          fi
       - name: Build the APK
         working-directory: android
         run: |
           echo "org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g" >> gradle.properties
-          ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+          set -o pipefail
+          if ! ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a 2>&1 | tee build.log; then
+            # Surface the cause as a public annotation (logs need sign-in).
+            msg=$( (grep -n -A12 "What went wrong" build.log; grep -n -E "error:|ERROR:|Exception" build.log | head -25) | head -60 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=Gradle build failed::${msg}"
+            exit 1
+          fi
       - name: Name the APK
         run: cp android/app/build/outputs/apk/release/app-release.apk OrgCalendar-test.apk
       - uses: softprops/action-gh-release@v2
