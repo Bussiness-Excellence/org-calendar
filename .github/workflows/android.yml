@@ -52,6 +52,8 @@ jobs:
         working-directory: android
         run: |
           echo "org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g" >> gradle.properties
+          # Expo 57 passes an empty list (no value) when this is unset, which breaks autolinking.
+          echo 'expo.inlineModules.watchedDirectories=[]' >> gradle.properties
           set -o pipefail
           if ! ./gradlew assembleRelease --no-daemon --stacktrace -PreactNativeArchitectures=arm64-v8a,armeabi-v7a 2>&1 | tee build.log; then
             # Surface the cause as a public annotation (logs need sign-in).
