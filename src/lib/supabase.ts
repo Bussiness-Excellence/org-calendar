@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import 'react-native-url-polyfill/auto';
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './supabase-config';
+import { t } from '@/lib/i18n';
 
 export const supabase = createClient(
   SUPABASE_URL || 'https://not-configured.invalid',
@@ -41,9 +42,13 @@ export async function callAdmin<T = { ok: true }>(
       } catch {
         // fall through to the generic message
       }
-      throw new AdminError(body.error || 'The request could not be completed.', body.code);
+      if (body.code === 'USER_LIMIT') {
+        throw new AdminError(t('The free plan includes up to {n} people. Upgrade to Pro ($50/year) to add more.', { n: 10 }), body.code);
+      }
+      // Server messages are English; show them in the reader's language when we know them.
+      throw new AdminError(body.error ? t(body.error) : t('The request could not be completed.'), body.code);
     }
-    throw new AdminError('Could not reach the server. Check your connection and try again.');
+    throw new AdminError(t('Could not reach the server. Check your connection and try again.'));
   }
   return data as T;
 }

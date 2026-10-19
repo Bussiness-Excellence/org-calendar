@@ -13,7 +13,11 @@ import {
 } from '@expo-google-fonts/inter';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { useColors } from '@/hooks/useColors';
 import { CalendarProvider } from '@/lib/calendar-context';
+import { NotificationsProvider } from '@/lib/notifications';
+import { PreferencesProvider, usePreferences } from '@/lib/preferences';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -21,11 +25,32 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
+  const colors = useColors();
   return (
-    <Stack screenOptions={{ headerShown: false, headerBackTitle: 'Back' }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="(tabs)" />
-    </Stack>
+    <>
+      <StatusBar style={colors.scheme === 'dark' ? 'light' : 'dark'} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(tabs)" />
+      </Stack>
+    </>
+  );
+}
+
+/** Re-renders the whole app when the language changes, so every text is redrawn. */
+function LocalizedApp() {
+  const { language, ready } = usePreferences();
+  if (!ready) return null;
+  return (
+    <CalendarProvider key={language}>
+      <NotificationsProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <KeyboardProvider>
+            <RootLayoutNav />
+          </KeyboardProvider>
+        </GestureHandlerRootView>
+      </NotificationsProvider>
+    </CalendarProvider>
   );
 }
 
@@ -49,13 +74,9 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
-          <CalendarProvider>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-              <KeyboardProvider>
-                <RootLayoutNav />
-              </KeyboardProvider>
-            </GestureHandlerRootView>
-          </CalendarProvider>
+          <PreferencesProvider>
+            <LocalizedApp />
+          </PreferencesProvider>
         </QueryClientProvider>
       </ErrorBoundary>
     </SafeAreaProvider>

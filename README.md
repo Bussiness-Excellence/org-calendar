@@ -7,6 +7,17 @@ its own people can see.
 - **Free:** up to 10 people per organization; events are published straight away.
 - **Pro ($50/year):** unlimited people and manager approval for events.
 
+## Features
+
+- Organizations sign up themselves with their own name, logo and super admin
+- Month and schedule views, teams, people, roles, event approvals (Pro)
+- **Notifications:** in-app inbox with unread badge for assignments, approvals,
+  sent-back events and new shared events, live while the app is open; phone
+  reminders 30 minutes before timed events and at 8:00 for all-day ones
+- **Languages:** English, Arabic (right-to-left) and French; picked from the
+  device language and switchable on the sign-in and Account screens
+- **Appearance:** System, Light or Dark
+
 ## Test links
 
 - Web app: https://bussiness-excellence.github.io/org-calendar/
@@ -27,7 +38,7 @@ All organizations share one Supabase database, separated by four layers
 4. People are only created by the `calendar-admin` server function, always
    inside the creating admin's organization.
 
-`supabase/tests/isolation.sql` contains 42 automated checks that try to read
+`supabase/tests/` contains automated checks that try to read
 or change another organization's data and confirm they are blocked.
 
 ## Project layout
@@ -38,7 +49,9 @@ or change another organization's data and confirm they are blocked.
 | `src/lib/` | Supabase client, data layer, settings |
 | `supabase/schema.sql` | Full database: tables, rules, triggers |
 | `supabase/functions/calendar-admin/` | Server function: sign-up, people, branding, owner console |
-| `supabase/tests/isolation.sql` | Isolation and plan tests |
+| `supabase/migrations/` | Changes applied after the first schema (e.g. `002_notifications.sql`) |
+| `supabase/tests/` | Isolation, plan and notification tests |
+| `src/lib/i18n.ts`, `src/lib/locales/` | Translations (English text is the key) |
 | `.env` | Which Supabase project the app talks to (public keys only) |
 
 ## Settings

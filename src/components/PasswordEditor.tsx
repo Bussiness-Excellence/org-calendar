@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useColors } from '@/hooks/useColors';
 import { useCalendar } from '@/lib/calendar-context';
+import { t } from '@/lib/i18n';
 
 export function PasswordEditor({
   required = false,
@@ -35,11 +36,11 @@ export function PasswordEditor({
 
   const submit = async () => {
     if (password.length < 6) {
-      setError('Use at least 6 characters.');
+      setError(t('Use at least 6 characters.'));
       return;
     }
     if (password !== confirm) {
-      setError('The passwords do not match.');
+      setError(t('The passwords do not match.'));
       return;
     }
     setBusy(true);
@@ -50,7 +51,7 @@ export function PasswordEditor({
       setConfirm('');
       onClose?.();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Password could not be changed.');
+      setError(cause instanceof Error ? cause.message : t('Password could not be changed.'));
     } finally {
       setBusy(false);
     }
@@ -72,7 +73,7 @@ export function PasswordEditor({
           onPress={onClose}
           style={styles.close}
           accessibilityRole="button"
-          accessibilityLabel="Close"
+          accessibilityLabel={t('Close')}
           hitSlop={10}
         >
           <Feather name="x" size={22} color={colors.secondaryForeground} />
@@ -82,19 +83,19 @@ export function PasswordEditor({
         <Feather name="lock" size={20} color={colors.primary} />
       </View>
       <Text style={[styles.title, { color: colors.foreground }]}>
-        {required ? 'Choose a new password' : 'Change password'}
+        {required ? t('Choose a new password') : t('Change password')}
       </Text>
       <Text style={[styles.copy, { color: colors.secondaryForeground }]}>
         {required
-          ? 'Set a password only you know before continuing to the calendar.'
-          : 'Use at least 6 characters.'}
+          ? t('Set a password only you know before continuing to the calendar.')
+          : t('Use at least 6 characters.')}
       </Text>
       {error ? (
         <View style={[styles.errorBox, { backgroundColor: colors.warningSurface }]}>
           <Text style={[styles.errorText, { color: colors.warning }]}>{error}</Text>
         </View>
       ) : null}
-      <Text style={[styles.label, { color: colors.secondaryForeground }]}>New password</Text>
+      <Text style={[styles.label, { color: colors.secondaryForeground }]}>{t('New password')}</Text>
       <TextInput
         testID="new-password"
         value={password}
@@ -102,12 +103,12 @@ export function PasswordEditor({
         secureTextEntry={!showPassword}
         autoCapitalize="none"
         textContentType="newPassword"
-        placeholder="At least 6 characters"
+        placeholder={t('At least 6 characters')}
         placeholderTextColor={colors.mutedForeground}
         style={[styles.input, { color: colors.foreground, borderColor: colors.border }]}
       />
       <Text style={[styles.label, styles.confirmLabel, { color: colors.secondaryForeground }]}>
-        Confirm password
+        {t('Confirm password')}
       </Text>
       <TextInput
         testID="confirm-password"
@@ -116,7 +117,7 @@ export function PasswordEditor({
         secureTextEntry={!showPassword}
         autoCapitalize="none"
         textContentType="newPassword"
-        placeholder="Repeat your new password"
+        placeholder={t('Repeat your new password')}
         placeholderTextColor={colors.mutedForeground}
         style={[styles.input, { color: colors.foreground, borderColor: colors.border }]}
       />
@@ -127,7 +128,7 @@ export function PasswordEditor({
       >
         <Feather name={showPassword ? 'eye-off' : 'eye'} size={16} color={colors.primary} />
         <Text style={[styles.showText, { color: colors.primary }]}>
-          {showPassword ? 'Hide passwords' : 'Show passwords'}
+          {showPassword ? t('Hide passwords') : t('Show passwords')}
         </Text>
       </Pressable>
       <Pressable
@@ -143,7 +144,7 @@ export function PasswordEditor({
           <ActivityIndicator color={colors.primaryForeground} />
         ) : (
           <Text style={[styles.saveText, { color: colors.primaryForeground }]}>
-            Save password
+            {t('Save password')}
           </Text>
         )}
       </Pressable>
@@ -185,7 +186,7 @@ export function PasswordEditor({
         <Pressable
           style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(4, 14, 24, 0.48)' }]}
           onPress={onClose}
-          accessibilityLabel="Dismiss password editor"
+          accessibilityLabel={t('Dismiss password editor')}
         />
         <KeyboardAwareScrollViewCompat
           style={styles.modalScroll}

@@ -15,10 +15,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandMark } from '@/components/BrandMark';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { PasswordEditor } from '@/components/PasswordEditor';
+import { LanguageSwitch } from '@/components/PreferenceControls';
 import { useColors } from '@/hooks/useColors';
 import { getRememberedEmail, rememberEmail, useCalendar } from '@/lib/calendar-context';
 import { pickLogo, type PickedLogo } from '@/lib/logo-picker';
 import { APP_NAME, FREE_USER_LIMIT, isConfigured } from '@/lib/supabase-config';
+import { arrowBack, t } from '@/lib/i18n';
 
 type Mode = 'sign-in' | 'register';
 
@@ -28,7 +30,7 @@ export default function EntryScreen() {
   const [mode, setMode] = useState<Mode>('sign-in');
 
   if (!isConfigured) {
-    return <AccountIssue title="App not configured" message="This build has no server address. Rebuild it with the Supabase settings." />;
+    return <AccountIssue title={t('App not configured')} message={t('This build has no server address. Rebuild it with the Supabase settings.')} />;
   }
 
   if (authLoading || (userId && profileLoading)) {
@@ -49,11 +51,11 @@ export default function EntryScreen() {
 
   if (profileError || !profile || !profile.is_active || !org) {
     const message = profileError
-      ? 'Your account could not be checked. Check your connection and try again.'
+      ? t('Your account could not be checked. Check your connection and try again.')
       : profile && !profile.is_active
-        ? 'This account has been deactivated. Contact your calendar admin.'
-        : 'This account is not part of any organization yet.';
-    return <AccountIssue title="Calendar access unavailable" message={message} onSignOut={signOut} />;
+        ? t('This account has been deactivated. Contact your calendar admin.')
+        : t('This account is not part of any organization yet.');
+    return <AccountIssue title={t('Calendar access unavailable')} message={message} onSignOut={signOut} />;
   }
 
   if (profile.must_change_password) return <PasswordEditor required />;
@@ -74,6 +76,7 @@ function AuthShell({ children }: { children: React.ReactNode }) {
         bottomOffset={24}
         keyboardShouldPersistTaps="handled"
       >
+        <LanguageSwitch />
         <View style={[styles.authCard, { backgroundColor: colors.card, borderColor: colors.border }]}>{children}</View>
       </KeyboardAwareScrollViewCompat>
     </View>
@@ -129,7 +132,7 @@ function PasswordField({
   onSubmitEditing,
   placeholder,
   testID,
-  label = 'Password',
+  label = t('Password'),
   newPassword = false,
 }: {
   value: string;
@@ -163,7 +166,7 @@ function PasswordField({
         <Pressable
           onPress={() => setShow((s) => !s)}
           accessibilityRole="button"
-          accessibilityLabel={show ? 'Hide password' : 'Show password'}
+          accessibilityLabel={show ? t('Hide password') : t('Show password')}
           hitSlop={10}
         >
           <Feather name={show ? 'eye-off' : 'eye'} size={18} color={colors.mutedForeground} />
@@ -221,7 +224,7 @@ function SignInScreen({ onRegister }: { onRegister: () => void }) {
 
   const submit = async () => {
     if (!email.trim() || !password) {
-      setError('Enter your email and password.');
+      setError(t('Enter your email and password.'));
       return;
     }
     setBusy(true);
@@ -230,7 +233,7 @@ function SignInScreen({ onRegister }: { onRegister: () => void }) {
       await signIn(email, password);
       void rememberEmail(remember ? email.trim().toLowerCase() : null).catch(() => undefined);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Sign in could not be completed. Try again.');
+      setError(cause instanceof Error ? cause.message : t('Sign in could not be completed. Try again.'));
     } finally {
       setBusy(false);
     }
@@ -238,15 +241,15 @@ function SignInScreen({ onRegister }: { onRegister: () => void }) {
 
   return (
     <AuthShell>
-      <ProductHeader subtitle="Your organization's shared calendar. Sign in to continue." />
+      <ProductHeader subtitle={t('Your organization’s shared calendar. Sign in to continue.')} />
       <ErrorBox message={error} />
       <Field
         first
-        label="Email"
+        label={t('Email')}
         testID="sign-in-email"
         value={email}
         onChangeText={setEmail}
-        placeholder="name@company.com"
+        placeholder={t('name@company.com')}
         keyboardType="email-address"
         autoCapitalize="none"
         autoCorrect={false}
@@ -254,7 +257,7 @@ function SignInScreen({ onRegister }: { onRegister: () => void }) {
         autoComplete="email"
         returnKeyType="next"
       />
-      <PasswordField testID="sign-in-password" value={password} onChangeText={setPassword} onSubmitEditing={submit} placeholder="Your password" />
+      <PasswordField testID="sign-in-password" value={password} onChangeText={setPassword} onSubmitEditing={submit} placeholder={t('Your password')} />
       <Pressable
         testID="remember-email"
         onPress={() => setRemember((r) => !r)}
@@ -270,15 +273,15 @@ function SignInScreen({ onRegister }: { onRegister: () => void }) {
         >
           {remember ? <Feather name="check" size={13} color={colors.primaryForeground} /> : null}
         </View>
-        <Text style={[styles.rememberText, { color: colors.secondaryForeground }]}>Remember my email</Text>
+        <Text style={[styles.rememberText, { color: colors.secondaryForeground }]}>{t('Remember my email')}</Text>
       </Pressable>
-      <PrimaryButton testID="sign-in-submit" label="Sign in" busy={busy} onPress={submit} />
+      <PrimaryButton testID="sign-in-submit" label={t('Sign in')} busy={busy} onPress={submit} />
       <Text style={[styles.footnote, { color: colors.mutedForeground }]}>
-        Joining a team? Your calendar admin creates your account.
+        {t('Joining a team? Your calendar admin creates your account.')}
       </Text>
 
       <View style={[styles.divider, { backgroundColor: colors.border }]} />
-      <Text style={[styles.altTitle, { color: colors.foreground }]}>New to {APP_NAME}?</Text>
+      <Text style={[styles.altTitle, { color: colors.foreground }]}>{t('New to {app}?', { app: APP_NAME })}</Text>
       <Pressable
         testID="go-register"
         onPress={onRegister}
@@ -286,9 +289,9 @@ function SignInScreen({ onRegister }: { onRegister: () => void }) {
         accessibilityRole="button"
       >
         <Feather name="plus-circle" size={16} color={colors.primary} />
-        <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>Create your organization</Text>
+        <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>{t('Create your organization')}</Text>
       </Pressable>
-      <Text style={[styles.footnote, { color: colors.mutedForeground }]}>Free for up to {FREE_USER_LIMIT} people.</Text>
+      <Text style={[styles.footnote, { color: colors.mutedForeground }]}>{t('Free for up to {n} people.', { n: FREE_USER_LIMIT })}</Text>
     </AuthShell>
   );
 }
@@ -310,15 +313,15 @@ function RegisterScreen({ onSignIn }: { onSignIn: () => void }) {
       const picked = await pickLogo();
       if (picked) setLogo(picked);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'That image could not be used.');
+      setError(cause instanceof Error ? cause.message : t('That image could not be used.'));
     }
   };
 
   const submit = async () => {
-    if (!orgName.trim()) return setError('Enter your organization’s name.');
-    if (!fullName.trim()) return setError('Enter your full name.');
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError('Enter a valid email address.');
-    if (password.length < 8) return setError('Use a password of at least 8 characters.');
+    if (!orgName.trim()) return setError(t('Enter your organization’s name.'));
+    if (!fullName.trim()) return setError(t('Enter your full name.'));
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError(t('Enter a valid email address.'));
+    if (password.length < 8) return setError(t('Use a password of at least 8 characters.'));
     setBusy(true);
     setError('');
     try {
@@ -330,7 +333,7 @@ function RegisterScreen({ onSignIn }: { onSignIn: () => void }) {
         logo: logo ? { base64: logo.base64, mime: logo.mime } : null,
       });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Your organization could not be created. Try again.');
+      setError(cause instanceof Error ? cause.message : t('Your organization could not be created. Try again.'));
       setBusy(false);
     }
   };
@@ -338,19 +341,19 @@ function RegisterScreen({ onSignIn }: { onSignIn: () => void }) {
   return (
     <AuthShell>
       <Pressable onPress={onSignIn} style={styles.backLink} accessibilityRole="button" hitSlop={8}>
-        <Feather name="arrow-left" size={16} color={colors.primary} />
-        <Text style={[styles.backText, { color: colors.primary }]}>Back to sign in</Text>
+        <Feather name={arrowBack()} size={16} color={colors.primary} />
+        <Text style={[styles.backText, { color: colors.primary }]}>{t('Back to sign in')}</Text>
       </Pressable>
-      <Text style={[styles.title, { color: colors.foreground }]}>Create your organization</Text>
+      <Text style={[styles.title, { color: colors.foreground }]}>{t('Create your organization')}</Text>
       <Text style={[styles.subtitle, { color: colors.secondaryForeground }]}>
-        You'll be its super admin. Your calendar starts empty and only your people can see it.
+        {t('You\'ll be its super admin. Your calendar starts empty and only your people can see it.')}
       </Text>
       <ErrorBox message={error} />
 
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>ORGANIZATION</Text>
-      <Field first label="Organization name" testID="register-org-name" value={orgName} onChangeText={setOrgName} placeholder="e.g. Acme Pharma" autoCapitalize="words" maxLength={120} />
+      <Field first label={t('Organization name')} testID="register-org-name" value={orgName} onChangeText={setOrgName} placeholder={t('e.g. Acme Pharma')} autoCapitalize="words" maxLength={120} />
 
-      <Text style={[styles.label, styles.labelGap, { color: colors.secondaryForeground }]}>Logo (optional)</Text>
+      <Text style={[styles.label, styles.labelGap, { color: colors.secondaryForeground }]}>{t('Logo (optional)')}</Text>
       <View style={styles.logoRow}>
         <BrandMark name={orgName || undefined} logoUrl={logo?.uri} size={52} />
         <Pressable
@@ -360,38 +363,38 @@ function RegisterScreen({ onSignIn }: { onSignIn: () => void }) {
           accessibilityRole="button"
         >
           <Feather name="image" size={15} color={colors.secondaryForeground} />
-          <Text style={[styles.logoButtonText, { color: colors.secondaryForeground }]}>{logo ? 'Change logo' : 'Upload logo'}</Text>
+          <Text style={[styles.logoButtonText, { color: colors.secondaryForeground }]}>{logo ? t('Change logo') : t('Upload logo')}</Text>
         </Pressable>
         {logo ? (
-          <Pressable onPress={() => setLogo(null)} accessibilityRole="button" accessibilityLabel="Remove logo" hitSlop={8}>
+          <Pressable onPress={() => setLogo(null)} accessibilityRole="button" accessibilityLabel={t('Remove logo')} hitSlop={8}>
             <Feather name="x" size={18} color={colors.mutedForeground} />
           </Pressable>
         ) : null}
       </View>
 
       <Text style={[styles.sectionLabel, styles.sectionGap, { color: colors.mutedForeground }]}>YOUR SUPER ADMIN ACCOUNT</Text>
-      <Field first label="Full name" testID="register-full-name" value={fullName} onChangeText={setFullName} placeholder="Your name" autoCapitalize="words" textContentType="name" autoComplete="name" maxLength={120} />
+      <Field first label={t('Full name')} testID="register-full-name" value={fullName} onChangeText={setFullName} placeholder={t('Your name')} autoCapitalize="words" textContentType="name" autoComplete="name" maxLength={120} />
       <Field
-        label="Work email"
+        label={t('Work email')}
         testID="register-email"
         value={email}
         onChangeText={setEmail}
-        placeholder="name@company.com"
+        placeholder={t('name@company.com')}
         keyboardType="email-address"
         autoCapitalize="none"
         autoCorrect={false}
         textContentType="emailAddress"
         autoComplete="email"
       />
-      <PasswordField testID="register-password" value={password} onChangeText={setPassword} onSubmitEditing={submit} placeholder="At least 8 characters" newPassword />
+      <PasswordField testID="register-password" value={password} onChangeText={setPassword} onSubmitEditing={submit} placeholder={t('At least 8 characters')} newPassword />
 
       <View style={[styles.planNote, { backgroundColor: colors.accent }]}>
         <Feather name="gift" size={15} color={colors.primary} />
         <Text style={[styles.planNoteText, { color: colors.secondaryForeground }]}>
-          Free for up to {FREE_USER_LIMIT} people. Upgrade any time for more people and event approvals.
+          {t('Free for up to {n} people. Upgrade any time for more people and event approvals.', { n: FREE_USER_LIMIT })}
         </Text>
       </View>
-      <PrimaryButton testID="register-submit" label="Create organization" busy={busy} onPress={submit} />
+      <PrimaryButton testID="register-submit" label={t('Create organization')} busy={busy} onPress={submit} />
     </AuthShell>
   );
 }
@@ -424,7 +427,7 @@ function AccountIssue({ title, message, onSignOut }: { title: string; message: s
         <Feather name="user-x" size={26} color={colors.primary} />
         <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
         <Text style={[styles.subtitle, { color: colors.secondaryForeground }]}>{message}</Text>
-        {onSignOut ? <PrimaryButton testID="issue-sign-out" label="Sign out" busy={busy} onPress={() => void leave()} /> : null}
+        {onSignOut ? <PrimaryButton testID="issue-sign-out" label={t('Sign out')} busy={busy} onPress={() => void leave()} /> : null}
       </View>
     </View>
   );

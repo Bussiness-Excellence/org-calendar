@@ -13,6 +13,7 @@ import { Platform } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { callAdmin, supabase } from './supabase';
 import { APP_NAME } from './supabase-config';
+import { t } from '@/lib/i18n';
 
 export type Role = 'super_admin' | 'group_admin' | 'user';
 
@@ -150,7 +151,7 @@ export function canEditEvent(
 }
 
 export function roleLabel(role: Role | undefined): string {
-  return role === 'super_admin' ? 'Super admin' : role === 'group_admin' ? 'Team manager' : 'Member';
+  return role === 'super_admin' ? t('Super admin') : role === 'group_admin' ? t('Team manager') : t('Member');
 }
 
 export function initialsFor(name?: string | null, fallback = '?'): string {
@@ -168,15 +169,15 @@ export function initialsFor(name?: string | null, fallback = '?'): string {
 function friendlyError(error: { message?: string; code?: string } | null): Error {
   const message = error?.message ?? '';
   if (/violates row-level security|permission denied|42501/i.test(message + (error?.code ?? ''))) {
-    return new Error('You do not have permission to do that.');
+    return new Error(t('You do not have permission to do that.'));
   }
   if (/foreign key/i.test(message)) {
-    return new Error('That item is linked to something that no longer exists. Refresh and try again.');
+    return new Error(t('That item is linked to something that no longer exists. Refresh and try again.'));
   }
   if (/fetch|network/i.test(message)) {
-    return new Error('Could not reach the server. Check your connection and try again.');
+    return new Error(t('Could not reach the server. Check your connection and try again.'));
   }
-  return new Error(message || 'Something went wrong. Try again.');
+  return new Error(message || t('Something went wrong. Try again.'));
 }
 
 export function CalendarProvider({ children }: PropsWithChildren) {
@@ -282,7 +283,7 @@ export function CalendarProvider({ children }: PropsWithChildren) {
   // Show the company's name in the browser tab.
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.title = org?.name ? `${org.name} · Calendar` : APP_NAME;
+      document.title = org?.name ? `${org.name} · ${t('Calendar')}` : APP_NAME;
     }
   }, [org?.name]);
 
@@ -293,10 +294,10 @@ export function CalendarProvider({ children }: PropsWithChildren) {
     });
     if (error) {
       if (/invalid login|invalid credentials/i.test(error.message)) {
-        throw new Error('That email and password do not match.');
+        throw new Error(t('That email and password do not match.'));
       }
       if (/banned/i.test(error.message)) {
-        throw new Error('This account has been deactivated. Contact your calendar admin.');
+        throw new Error(t('This account has been deactivated. Contact your calendar admin.'));
       }
       throw friendlyError(error);
     }
@@ -332,7 +333,7 @@ export function CalendarProvider({ children }: PropsWithChildren) {
 
   const saveEvent = useCallback(
     async (id: string | null, draft: EventDraft) => {
-      if (!userId || !profile) throw new Error('Sign in again to continue.');
+      if (!userId || !profile) throw new Error(t('Sign in again to continue.'));
       const payload = {
         title: draft.title.trim(),
         date: draft.date,
@@ -360,7 +361,7 @@ export function CalendarProvider({ children }: PropsWithChildren) {
 
   const deleteEvent = useCallback(
     async (id: string) => {
-      if (!userId) throw new Error('Sign in again to continue.');
+      if (!userId) throw new Error(t('Sign in again to continue.'));
       const { error } = await supabase.from('assignments').delete().eq('id', id);
       if (error) throw friendlyError(error);
       await queryClient.invalidateQueries({ queryKey: dataKey(userId) });
@@ -370,7 +371,7 @@ export function CalendarProvider({ children }: PropsWithChildren) {
 
   const reviewEvent = useCallback(
     async (id: string, approved: boolean, reason = '') => {
-      if (!userId) throw new Error('Sign in again to continue.');
+      if (!userId) throw new Error(t('Sign in again to continue.'));
       const patch = approved
         ? { status: 'approved', rejection_note: null }
         : { status: 'rejected', rejection_note: reason.trim() };
@@ -383,7 +384,7 @@ export function CalendarProvider({ children }: PropsWithChildren) {
 
   const changePassword = useCallback(
     async (password: string) => {
-      if (!userId) throw new Error('Sign in again to continue.');
+      if (!userId) throw new Error(t('Sign in again to continue.'));
       const { error: authError } = await supabase.auth.updateUser({ password });
       if (authError) throw friendlyError(authError);
       const { error: profileError } = await supabase
@@ -391,7 +392,7 @@ export function CalendarProvider({ children }: PropsWithChildren) {
         .update({ must_change_password: false })
         .eq('id', userId);
       if (profileError) {
-        throw new Error('Your password changed, but your account could not be updated. Try again.');
+        throw new Error(t('Your password changed, but your account could not be updated. Try again.'));
       }
       await queryClient.invalidateQueries({ queryKey: profileKey(userId) });
     },

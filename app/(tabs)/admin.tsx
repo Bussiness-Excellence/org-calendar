@@ -29,6 +29,7 @@ import {
 import { pickLogo } from '@/lib/logo-picker';
 import { AdminError, callAdmin, supabase } from '@/lib/supabase';
 import { FREE_USER_LIMIT } from '@/lib/supabase-config';
+import { dateLocale, forwardIcon, t, tn } from '@/lib/i18n';
 
 type Colors = ReturnType<typeof useColors>;
 
@@ -57,7 +58,7 @@ export default function AdminScreen() {
           <Text numberOfLines={1} style={[styles.kicker, { color: colors.primary }]}>
             {(org?.name ?? '').toUpperCase()}
           </Text>
-          <Text style={[styles.title, { color: colors.foreground }]}>Admin</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t('Admin')}</Text>
         </View>
         {superAdmin ? (
           <>
@@ -180,13 +181,13 @@ function Sheet({ visible, title, onClose, children, colors }: {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalRoot}>
-        <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(4, 14, 24, 0.48)' }]} onPress={onClose} accessibilityLabel="Close" />
+        <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(4, 14, 24, 0.48)' }]} onPress={onClose} accessibilityLabel={t('Close')} />
         <View style={[styles.sheet, { backgroundColor: colors.card, borderColor: colors.border, paddingBottom: Math.max(insets.bottom, 18) }]}>
           <KeyboardAwareScrollViewCompat style={styles.sheetScroll} contentContainerStyle={styles.sheetContent} bottomOffset={60} keyboardShouldPersistTaps="handled">
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: colors.foreground }]}>{title}</Text>
-              <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" hitSlop={10}>
+              <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel={t('Close')} hitSlop={10}>
                 <Feather name="x" size={21} color={colors.secondaryForeground} />
               </Pressable>
             </View>
@@ -208,16 +209,16 @@ function OrganizationSection({ colors }: { colors: Colors }) {
   const [done, setDone] = useState('');
 
   const saveName = async () => {
-    if (!name.trim()) return setError('The organization name cannot be empty.');
+    if (!name.trim()) return setError(t('The organization name cannot be empty.'));
     setBusy('name');
     setError('');
     setDone('');
     try {
       await callAdmin('update_org', { name: name.trim() });
       await refresh();
-      setDone('Name saved.');
+      setDone(t('Name saved.'));
     } catch (cause) {
-      setError(errorText(cause, 'The name could not be saved.'));
+      setError(errorText(cause, t('The name could not be saved.')));
     } finally {
       setBusy('');
     }
@@ -232,9 +233,9 @@ function OrganizationSection({ colors }: { colors: Colors }) {
       setBusy('logo');
       await callAdmin('update_org', remove ? { remove_logo: true } : { logo: { base64: picked!.base64, mime: picked!.mime } });
       await refresh();
-      setDone(remove ? 'Logo removed.' : 'Logo updated.');
+      setDone(remove ? t('Logo removed.') : t('Logo updated.'));
     } catch (cause) {
-      setError(errorText(cause, 'The logo could not be updated.'));
+      setError(errorText(cause, t('The logo could not be updated.')));
     } finally {
       setBusy('');
     }
@@ -242,20 +243,20 @@ function OrganizationSection({ colors }: { colors: Colors }) {
 
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <SectionHeader title="Organization" meta="Your name and logo appear across the calendar." colors={colors} />
+      <SectionHeader title={t('Organization')} meta={t('Your name and logo appear across the calendar.')} colors={colors} />
       <Banner text={error} tone="error" colors={colors} />
       <Banner text={done} tone="success" colors={colors} />
       <View style={styles.logoRow}>
         <BrandMark name={org?.name} logoUrl={org?.logo_url} size={60} />
         <View style={{ gap: 8, flex: 1 }}>
-          <SmallButton testID="admin-change-logo" label={org?.logo_url ? 'Change logo' : 'Upload logo'} icon="image" tone="quiet" onPress={() => void changeLogo()} colors={colors} disabled={!!busy} />
-          {org?.logo_url ? <SmallButton label="Remove logo" icon="trash-2" tone="quiet" onPress={() => void changeLogo(true)} colors={colors} disabled={!!busy} /> : null}
+          <SmallButton testID="admin-change-logo" label={org?.logo_url ? t('Change logo') : t('Upload logo')} icon="image" tone="quiet" onPress={() => void changeLogo()} colors={colors} disabled={!!busy} />
+          {org?.logo_url ? <SmallButton label={t('Remove logo')} icon="trash-2" tone="quiet" onPress={() => void changeLogo(true)} colors={colors} disabled={!!busy} /> : null}
         </View>
         {busy === 'logo' ? <ActivityIndicator color={colors.primary} /> : null}
       </View>
-      <Field label="Organization name" colors={colors} testID="admin-org-name" value={name} onChangeText={setName} maxLength={120} autoCapitalize="words" />
+      <Field label={t('Organization name')} colors={colors} testID="admin-org-name" value={name} onChangeText={setName} maxLength={120} autoCapitalize="words" />
       <View style={styles.rowEnd}>
-        <SmallButton testID="admin-save-name" label={busy === 'name' ? 'Saving…' : 'Save name'} icon="check" onPress={() => void saveName()} colors={colors} disabled={!!busy || name.trim() === org?.name} />
+        <SmallButton testID="admin-save-name" label={busy === 'name' ? t('Saving…') : t('Save name')} icon="check" onPress={() => void saveName()} colors={colors} disabled={!!busy || name.trim() === org?.name} />
       </View>
     </View>
   );
@@ -273,28 +274,28 @@ function PlanSection({ colors }: { colors: Colors }) {
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <SectionHeader
-        title="Plan"
-        meta={pro ? `Pro until ${org.plan_expires_at ?? '—'}` : 'Free plan'}
+        title={t('Plan')}
+        meta={pro ? t('Pro until {date}', { date: org.plan_expires_at ?? '—' }) : t('Free plan')}
         action={
           <View style={[styles.planBadge, { backgroundColor: pro ? colors.successSurface : colors.accent }]}>
-            <Text style={[styles.planBadgeText, { color: pro ? colors.success : colors.primary }]}>{pro ? 'PRO' : 'FREE'}</Text>
+            <Text style={[styles.planBadgeText, { color: pro ? colors.success : colors.primary }]}>{pro ? 'PRO' : t('Free').toUpperCase()}</Text>
           </View>
         }
         colors={colors}
       />
       {pro ? (
         <Text style={[styles.body, { color: colors.secondaryForeground }]}>
-          {used} active {used === 1 ? 'person' : 'people'} · unlimited · manager approval is on for events from members.
+          {tn(used, '{n} active person', '{n} active people')} · {t('unlimited · manager approval is on for events from members.')}
         </Text>
       ) : (
         <>
           <Text style={[styles.body, { color: colors.secondaryForeground }]}>
-            {used} of {limit} people used · events are published without approval.
+            {t('{used} of {limit} people used · events are published without approval.', { used, limit })}
           </Text>
           <View style={[styles.meter, { backgroundColor: colors.muted }]}>
             <View style={[styles.meterFill, { width: `${pct * 100}%`, backgroundColor: used >= limit ? colors.warning : colors.primary }]} />
           </View>
-          <UpgradeCard reason={used >= limit ? `You have reached the ${limit}-person limit of the free plan.` : undefined} />
+          <UpgradeCard reason={used >= limit ? t('You have reached the {limit}-person limit of the free plan.', { limit }) : undefined} />
         </>
       )}
     </View>
@@ -321,7 +322,7 @@ function TeamsSection({ colors }: { colors: Colors }) {
   };
 
   const save = async () => {
-    if (!name.trim()) return setError('Give the team a name.');
+    if (!name.trim()) return setError(t('Give the team a name.'));
     setBusy(true);
     setError('');
     try {
@@ -330,12 +331,12 @@ function TeamsSection({ colors }: { colors: Colors }) {
           ? await supabase.from('groups').insert({ name: name.trim(), color, sort_order: groups.length })
           : await supabase.from('groups').update({ name: name.trim(), color }).eq('id', (editing as CalendarGroup).id);
       if (result.error) {
-        throw new Error(/duplicate|unique/i.test(result.error.message) ? 'You already have a team with that name.' : result.error.message);
+        throw new Error(/duplicate|unique/i.test(result.error.message) ? t('You already have a team with that name.') : result.error.message);
       }
       await refresh();
       setEditing(null);
     } catch (cause) {
-      setError(errorText(cause, 'The team could not be saved.'));
+      setError(errorText(cause, t('The team could not be saved.')));
     } finally {
       setBusy(false);
     }
@@ -348,12 +349,12 @@ function TeamsSection({ colors }: { colors: Colors }) {
     try {
       const { error: delError } = await supabase.from('groups').delete().eq('id', editing.id);
       if (delError) {
-        throw new Error(/foreign key/i.test(delError.message) ? 'This team still has events. Move or delete them first.' : delError.message);
+        throw new Error(/foreign key/i.test(delError.message) ? t('This team still has events. Move or delete them first.') : delError.message);
       }
       await refresh();
       setEditing(null);
     } catch (cause) {
-      setError(errorText(cause, 'The team could not be deleted.'));
+      setError(errorText(cause, t('The team could not be deleted.')));
       setConfirmDelete(false);
     } finally {
       setBusy(false);
@@ -367,13 +368,13 @@ function TeamsSection({ colors }: { colors: Colors }) {
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <SectionHeader
-        title="Teams"
-        meta={groups.length ? `${groups.length} ${groups.length === 1 ? 'team' : 'teams'}` : 'Create teams to group people and events.'}
-        action={<SmallButton testID="add-team" label="Add team" icon="plus" onPress={() => open('new')} colors={colors} />}
+        title={t('Teams')}
+        meta={groups.length ? tn(groups.length, '{n} team', '{n} teams') : t('Create teams to group people and events.')}
+        action={<SmallButton testID="add-team" label={t('Add team')} icon="plus" onPress={() => open('new')} colors={colors} />}
         colors={colors}
       />
       {groups.length === 0 ? (
-        <Text style={[styles.empty, { color: colors.mutedForeground }]}>No teams yet. Add your first one, for example “Sales” or “Marketing”.</Text>
+        <Text style={[styles.empty, { color: colors.mutedForeground }]}>{t('No teams yet. Add your first one, for example “Sales” or “Marketing”.')}</Text>
       ) : (
         groups.map((team) => (
           <Pressable
@@ -387,18 +388,18 @@ function TeamsSection({ colors }: { colors: Colors }) {
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text numberOfLines={1} style={[styles.rowTitle, { color: colors.foreground }]}>{team.name}</Text>
               <Text style={[styles.rowMeta, { color: colors.mutedForeground }]}>
-                {memberCount(team.id)} people · {eventCount(team.id)} events
+                {tn(memberCount(team.id), '{n} person', '{n} people')} · {tn(eventCount(team.id), '{n} event', '{n} events')}
               </Text>
             </View>
-            <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
+            <Feather name={forwardIcon()} size={17} color={colors.mutedForeground} />
           </Pressable>
         ))
       )}
 
-      <Sheet visible={!!editing} title={editing === 'new' ? 'New team' : 'Edit team'} onClose={() => setEditing(null)} colors={colors}>
+      <Sheet visible={!!editing} title={editing === 'new' ? t('New team') : t('Edit team')} onClose={() => setEditing(null)} colors={colors}>
         <Banner text={error} tone="error" colors={colors} />
-        <Field label="Team name" colors={colors} testID="team-name" value={name} onChangeText={setName} placeholder="e.g. Marketing" maxLength={80} autoCapitalize="words" />
-        <Text style={[styles.fieldLabel, { color: colors.secondaryForeground, marginTop: 14 }]}>Color</Text>
+        <Field label={t('Team name')} colors={colors} testID="team-name" value={name} onChangeText={setName} placeholder={t('e.g. Marketing')} maxLength={80} autoCapitalize="words" />
+        <Text style={[styles.fieldLabel, { color: colors.secondaryForeground, marginTop: 14 }]}>{t('Color')}</Text>
         <View style={styles.colorRow}>
           {eventPalette.map((c) => (
             <Pressable
@@ -406,7 +407,7 @@ function TeamsSection({ colors }: { colors: Colors }) {
               onPress={() => setColor(c)}
               style={[styles.colorChoice, { backgroundColor: c }, color === c && { borderColor: colors.foreground, borderWidth: 2 }]}
               accessibilityRole="button"
-              accessibilityLabel="Team color"
+              accessibilityLabel={t('Team color')}
               accessibilityState={{ selected: color === c }}
             >
               {color === c ? <Feather name="check" size={14} color="#FFFFFF" /> : null}
@@ -420,15 +421,15 @@ function TeamsSection({ colors }: { colors: Colors }) {
               Its {memberCount(target.id)} people will have no team until you move them.
             </Text>
             <View style={styles.actions}>
-              <SmallButton label="Keep team" tone="quiet" onPress={() => setConfirmDelete(false)} colors={colors} />
-              <SmallButton testID="confirm-delete-team" label="Delete" tone="danger" onPress={() => void remove()} colors={colors} disabled={busy} />
+              <SmallButton label={t('Keep team')} tone="quiet" onPress={() => setConfirmDelete(false)} colors={colors} />
+              <SmallButton testID="confirm-delete-team" label={t('Delete')} tone="danger" onPress={() => void remove()} colors={colors} disabled={busy} />
             </View>
           </View>
         ) : (
           <View style={styles.actions}>
-            {target ? <SmallButton label="Delete" icon="trash-2" tone="quiet" onPress={() => setConfirmDelete(true)} colors={colors} /> : null}
+            {target ? <SmallButton label={t('Delete')} icon="trash-2" tone="quiet" onPress={() => setConfirmDelete(true)} colors={colors} /> : null}
             <View style={{ flex: 1 }} />
-            <SmallButton testID="save-team" label={busy ? 'Saving…' : 'Save team'} icon="check" onPress={() => void save()} colors={colors} disabled={busy} />
+            <SmallButton testID="save-team" label={busy ? t('Saving…') : t('Save team')} icon="check" onPress={() => void save()} colors={colors} disabled={busy} />
           </View>
         )}
       </Sheet>
@@ -506,21 +507,21 @@ function PeopleSection({ colors }: { colors: Colors }) {
       await after(success);
     } catch (cause) {
       if (cause instanceof AdminError && cause.code === 'USER_LIMIT') setLimitHit(true);
-      setError(errorText(cause, 'That did not work. Try again.'));
+      setError(errorText(cause, t('That did not work. Try again.')));
     } finally {
       setBusy(false);
     }
   };
 
   const save = () => {
-    if (!draft.full_name.trim()) return setError('Enter their name.');
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim())) return setError('Enter a valid email address.');
-    if (draft.role !== 'super_admin' && !draft.group_id) return setError(groups.length ? 'Choose a team.' : 'Create a team first.');
+    if (!draft.full_name.trim()) return setError(t('Enter their name.'));
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim())) return setError(t('Enter a valid email address.'));
+    if (draft.role !== 'super_admin' && !draft.group_id) return setError(groups.length ? t('Choose a team.') : t('Create a team first.'));
     if (editing === 'new') {
-      if (draft.password.length < 6) return setError('The temporary password must be at least 6 characters.');
+      if (draft.password.length < 6) return setError(t('The temporary password must be at least 6 characters.'));
       return run(
         () => callAdmin('create_user', { ...draft, group_id: draft.role === 'super_admin' ? null : draft.group_id }),
-        `${draft.full_name.trim()} was added. Share their email and temporary password: ${draft.password}`,
+        t('{name} was added. Share their email and temporary password: {password}', { name: draft.full_name.trim(), password: draft.password }),
       );
     }
     const person = editing as CalendarPerson;
@@ -534,32 +535,32 @@ function PeopleSection({ colors }: { colors: Colors }) {
           role: draft.role,
           group_id: draft.role === 'super_admin' ? null : draft.group_id,
         }),
-      'Changes saved.',
+      t('Changes saved.'),
     );
   };
 
   const target = editing && editing !== 'new' ? editing : null;
   const roleOptions: { value: Role; label: string }[] = [
-    { value: 'user', label: 'Member' },
-    { value: 'group_admin', label: 'Team manager' },
-    { value: 'super_admin', label: 'Super admin' },
+    { value: 'user', label: t('Member') },
+    { value: 'group_admin', label: t('Team manager') },
+    { value: 'super_admin', label: t('Super admin') },
   ];
 
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <SectionHeader
-        title="People"
-        meta={`${org?.active_users ?? 0} active${org && !org.pro_active ? ` of ${org.user_limit}` : ''}`}
-        action={<SmallButton testID="add-person" label="Add person" icon="user-plus" onPress={() => open('new')} colors={colors} />}
+        title={t('People')}
+        meta={org && !org.pro_active ? t('{n} active of {limit}', { n: org.active_users, limit: org.user_limit }) : t('{n} active', { n: org?.active_users ?? 0 })}
+        action={<SmallButton testID="add-person" label={t('Add person')} icon="user-plus" onPress={() => open('new')} colors={colors} />}
         colors={colors}
       />
       <Banner text={notice} tone="success" colors={colors} />
-      {atLimit ? <UpgradeCard compact reason={`You have ${org?.user_limit} people, the most the free plan allows.`} /> : null}
+      {atLimit ? <UpgradeCard compact reason={t('You have {n} people, the most the free plan allows.', { n: org?.user_limit ?? 10 })} /> : null}
       {people.length > 6 ? (
         <TextInput
           value={search}
           onChangeText={setSearch}
-          placeholder="Search people"
+          placeholder={t('Search people')}
           placeholderTextColor={colors.mutedForeground}
           style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]}
         />
@@ -578,64 +579,64 @@ function PeopleSection({ colors }: { colors: Colors }) {
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text numberOfLines={1} style={[styles.rowTitle, { color: colors.foreground }]}>
               {person.full_name}
-              {person.id === userId ? ' (you)' : ''}
+              {person.id === userId ? ` (${t('you')})` : ''}
             </Text>
             <Text numberOfLines={1} style={[styles.rowMeta, { color: colors.mutedForeground }]}>
               {roleLabel(person.role)}
-              {teamName(person.group_id) ? ` · ${teamName(person.group_id)}` : person.role === 'super_admin' ? '' : ' · No team'}
-              {!person.is_active ? ' · Deactivated' : ''}
+              {teamName(person.group_id) ? ` · ${teamName(person.group_id)}` : person.role === 'super_admin' ? '' : ` · ${t('No team')}`}
+              {!person.is_active ? ` · ${t('Deactivated')}` : ''}
             </Text>
             <Text numberOfLines={1} style={[styles.rowMeta, { color: colors.mutedForeground }]}>
               {person.email}
-              {logins.data ? ` · ${logins.data[person.id] ? `last seen ${new Date(logins.data[person.id]!).toLocaleDateString()}` : 'never signed in'}` : ''}
+              {logins.data ? ` · ${logins.data[person.id] ? t('last seen {date}', { date: new Date(logins.data[person.id]!).toLocaleDateString(dateLocale()) }) : t('never signed in')}` : ''}
             </Text>
           </View>
-          <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
+          <Feather name={forwardIcon()} size={17} color={colors.mutedForeground} />
         </Pressable>
       ))}
 
-      <Sheet visible={!!editing} title={editing === 'new' ? 'Add person' : 'Edit person'} onClose={() => setEditing(null)} colors={colors}>
+      <Sheet visible={!!editing} title={editing === 'new' ? t('Add person') : t('Edit person')} onClose={() => setEditing(null)} colors={colors}>
         <Banner text={error} tone="error" colors={colors} />
         {limitHit ? <View style={{ marginBottom: 12 }}><UpgradeCard compact /></View> : null}
-        <Field label="Full name" colors={colors} testID="person-name" value={draft.full_name} onChangeText={(v) => set('full_name', v)} autoCapitalize="words" maxLength={120} />
-        <Field label="Email" colors={colors} testID="person-email" value={draft.email} onChangeText={(v) => set('email', v)} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
-        <Field label="Job title (optional)" colors={colors} testID="person-title" value={draft.title} onChangeText={(v) => set('title', v)} maxLength={120} />
-        <Text style={[styles.fieldLabel, { color: colors.secondaryForeground, marginTop: 14 }]}>Role</Text>
+        <Field label={t('Full name')} colors={colors} testID="person-name" value={draft.full_name} onChangeText={(v) => set('full_name', v)} autoCapitalize="words" maxLength={120} />
+        <Field label={t('Email')} colors={colors} testID="person-email" value={draft.email} onChangeText={(v) => set('email', v)} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
+        <Field label={t('Job title (optional)')} colors={colors} testID="person-title" value={draft.title} onChangeText={(v) => set('title', v)} maxLength={120} />
+        <Text style={[styles.fieldLabel, { color: colors.secondaryForeground, marginTop: 14 }]}>{t('Role')}</Text>
         <Chips options={roleOptions} value={draft.role} onChange={(v) => set('role', v)} colors={colors} />
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
           {draft.role === 'super_admin'
-            ? 'Can manage the whole organization, its teams and people.'
+            ? t('Can manage the whole organization, its teams and people.')
             : draft.role === 'group_admin'
-              ? 'Manages one team’s events and approves them on Pro.'
-              : 'Adds and sees their own and shared events.'}
+              ? t('Manages one team’s events and approves them on Pro.')
+              : t('Adds and sees their own and shared events.')}
         </Text>
         {draft.role !== 'super_admin' ? (
           <>
-            <Text style={[styles.fieldLabel, { color: colors.secondaryForeground, marginTop: 14 }]}>Team</Text>
+            <Text style={[styles.fieldLabel, { color: colors.secondaryForeground, marginTop: 14 }]}>{t('Team')}</Text>
             {groups.length ? (
               <Chips options={groups.map((g) => ({ value: g.id, label: g.name, color: g.color }))} value={draft.group_id} onChange={(v) => set('group_id', v)} colors={colors} />
             ) : (
-              <Text style={[styles.hint, { color: colors.warning }]}>Create a team first.</Text>
+              <Text style={[styles.hint, { color: colors.warning }]}>{t('Create a team first.')}</Text>
             )}
           </>
         ) : null}
         {editing === 'new' ? (
           <>
-            <Field label="Temporary password" colors={colors} testID="person-password" value={draft.password} onChangeText={(v) => set('password', v)} autoCapitalize="none" autoCorrect={false} />
-            <Text style={[styles.hint, { color: colors.mutedForeground }]}>Share it with them. They choose their own password the first time they sign in.</Text>
+            <Field label={t('Temporary password')} colors={colors} testID="person-password" value={draft.password} onChangeText={(v) => set('password', v)} autoCapitalize="none" autoCorrect={false} />
+            <Text style={[styles.hint, { color: colors.mutedForeground }]}>{t('Share it with them. They choose their own password the first time they sign in.')}</Text>
           </>
         ) : null}
 
         {target ? (
           <View style={[styles.subCard, { borderColor: colors.border }]}>
-            <Text style={[styles.rowTitle, { color: colors.foreground }]}>Access</Text>
+            <Text style={[styles.rowTitle, { color: colors.foreground }]}>{t('Access')}</Text>
             {resetPassword ? (
               <>
-                <Field label="New temporary password" colors={colors} value={resetPassword} onChangeText={setResetPassword} autoCapitalize="none" autoCorrect={false} />
+                <Field label={t('New temporary password')} colors={colors} value={resetPassword} onChangeText={setResetPassword} autoCapitalize="none" autoCorrect={false} />
                 <View style={styles.actions}>
-                  <SmallButton label="Cancel" tone="quiet" onPress={() => setResetPassword('')} colors={colors} />
+                  <SmallButton label={t('Cancel')} tone="quiet" onPress={() => setResetPassword('')} colors={colors} />
                   <SmallButton
-                    label="Set password"
+                    label={t('Set password')}
                     onPress={() => void run(() => callAdmin('reset_password', { id: target.id, password: resetPassword }), `Password reset. Share the new temporary password: ${resetPassword}`)}
                     colors={colors}
                     disabled={busy}
@@ -646,19 +647,19 @@ function PeopleSection({ colors }: { colors: Colors }) {
               <>
                 <Text style={[styles.rowMeta, { color: colors.secondaryForeground }]}>
                   {confirm === 'delete'
-                    ? `Delete ${target.full_name}? Their events are deleted too. This cannot be undone.`
-                    : `Deactivate ${target.full_name}? They can no longer sign in, and their seat is freed.`}
+                    ? t('Delete {name}? Their events are deleted too. This cannot be undone.', { name: target.full_name })
+                    : t('Deactivate {name}? They can no longer sign in, and their seat is freed.', { name: target.full_name })}
                 </Text>
                 <View style={styles.actions}>
-                  <SmallButton label="Cancel" tone="quiet" onPress={() => setConfirm('')} colors={colors} />
+                  <SmallButton label={t('Cancel')} tone="quiet" onPress={() => setConfirm('')} colors={colors} />
                   <SmallButton
                     testID={`confirm-${confirm}`}
-                    label={confirm === 'delete' ? 'Delete' : 'Deactivate'}
+                    label={confirm === 'delete' ? t('Delete') : t('Deactivate')}
                     tone="danger"
                     onPress={() =>
                       void run(
                         () => (confirm === 'delete' ? callAdmin('delete_user', { id: target.id }) : callAdmin('set_active', { id: target.id, is_active: false })),
-                        confirm === 'delete' ? 'Person deleted.' : 'Person deactivated.',
+                        confirm === 'delete' ? t('Person deleted.') : t('Person deactivated.'),
                       )
                     }
                     colors={colors}
@@ -667,25 +668,25 @@ function PeopleSection({ colors }: { colors: Colors }) {
                 </View>
               </>
             ) : target.id === userId ? (
-              <Text style={[styles.rowMeta, { color: colors.mutedForeground }]}>This is your own account.</Text>
+              <Text style={[styles.rowMeta, { color: colors.mutedForeground }]}>{t('This is your own account.')}</Text>
             ) : (
               <View style={styles.wrapActions}>
-                <SmallButton label="Reset password" icon="key" tone="quiet" onPress={() => setResetPassword(tempPassword())} colors={colors} />
+                <SmallButton label={t('Reset password')} icon="key" tone="quiet" onPress={() => setResetPassword(tempPassword())} colors={colors} />
                 {target.is_active ? (
-                  <SmallButton testID="deactivate-person" label="Deactivate" icon="user-x" tone="quiet" onPress={() => setConfirm('deactivate')} colors={colors} />
+                  <SmallButton testID="deactivate-person" label={t('Deactivate')} icon="user-x" tone="quiet" onPress={() => setConfirm('deactivate')} colors={colors} />
                 ) : (
-                  <SmallButton label="Reactivate" icon="user-check" tone="quiet" onPress={() => void run(() => callAdmin('set_active', { id: target.id, is_active: true }), 'Person reactivated.')} colors={colors} disabled={busy} />
+                  <SmallButton label={t('Reactivate')} icon="user-check" tone="quiet" onPress={() => void run(() => callAdmin('set_active', { id: target.id, is_active: true }), t('Person reactivated.'))} colors={colors} disabled={busy} />
                 )}
-                <SmallButton label="Delete" icon="trash-2" tone="quiet" onPress={() => setConfirm('delete')} colors={colors} />
+                <SmallButton label={t('Delete')} icon="trash-2" tone="quiet" onPress={() => setConfirm('delete')} colors={colors} />
               </View>
             )}
           </View>
         ) : null}
 
         <View style={styles.actions}>
-          <SmallButton label="Cancel" tone="quiet" onPress={() => setEditing(null)} colors={colors} />
+          <SmallButton label={t('Cancel')} tone="quiet" onPress={() => setEditing(null)} colors={colors} />
           <View style={{ flex: 1 }} />
-          <SmallButton testID="save-person" label={busy ? 'Saving…' : editing === 'new' ? 'Add person' : 'Save changes'} icon="check" onPress={() => void save()} colors={colors} disabled={busy} />
+          <SmallButton testID="save-person" label={busy ? t('Saving…') : editing === 'new' ? t('Add person') : t('Save changes')} icon="check" onPress={() => void save()} colors={colors} disabled={busy} />
         </View>
       </Sheet>
     </View>
@@ -723,7 +724,7 @@ function OwnerConsole({ colors }: { colors: Colors }) {
       await callAdmin('platform_set_plan', { org_id: org.id, plan, expires: plan === 'pro' ? base.toISOString().slice(0, 10) : null });
       await orgs.refetch();
     } catch (cause) {
-      setError(errorText(cause, 'The plan could not be changed.'));
+      setError(errorText(cause, t('The plan could not be changed.')));
     } finally {
       setBusyId('');
     }
@@ -733,12 +734,12 @@ function OwnerConsole({ colors }: { colors: Colors }) {
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.primary }]}>
       <SectionHeader
-        title="Owner console"
-        meta="Only you see this. Companies, sizes and plans — never their calendars."
-        action={<SmallButton label="Refresh" icon="refresh-cw" tone="quiet" onPress={() => void orgs.refetch()} colors={colors} />}
+        title={t('Owner console')}
+        meta={t('Only you see this. Companies, sizes and plans — never their calendars.')}
+        action={<SmallButton label={t('Refresh')} icon="refresh-cw" tone="quiet" onPress={() => void orgs.refetch()} colors={colors} />}
         colors={colors}
       />
-      <Banner text={error || (orgs.error ? errorText(orgs.error, 'Could not load companies.') : '')} tone="error" colors={colors} />
+      <Banner text={error || (orgs.error ? errorText(orgs.error, t('Could not load companies.')) : '')} tone="error" colors={colors} />
       {orgs.isLoading ? <ActivityIndicator color={colors.primary} /> : null}
       {(orgs.data ?? []).map((o) => {
         const pro = o.plan === 'pro' && (!o.plan_expires_at || o.plan_expires_at >= today);
@@ -747,7 +748,7 @@ function OwnerConsole({ colors }: { colors: Colors }) {
             <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
               <Text numberOfLines={1} style={[styles.rowTitle, { color: colors.foreground }]}>{o.name}</Text>
               <Text style={[styles.rowMeta, { color: colors.mutedForeground }]}>
-                {o.active_users} people · {pro ? `Pro until ${o.plan_expires_at}` : o.active_users >= 10 ? 'Free · at limit' : 'Free'} · since {o.created_at.slice(0, 10)}
+                {tn(o.active_users, '{n} person', '{n} people')} · {pro ? t('Pro until {date}', { date: o.plan_expires_at ?? '' }) : o.active_users >= 10 ? t('Free · at limit') : t('Free')} · {t('since {date}', { date: o.created_at.slice(0, 10) })}
               </Text>
               {o.contact ? (
                 <Text numberOfLines={1} style={[styles.rowMeta, { color: colors.mutedForeground }]}>
@@ -759,8 +760,8 @@ function OwnerConsole({ colors }: { colors: Colors }) {
               <ActivityIndicator color={colors.primary} />
             ) : (
               <View style={{ gap: 6 }}>
-                <SmallButton label={pro ? '+1 year Pro' : 'Make Pro'} onPress={() => void setPlan(o, 'pro')} colors={colors} />
-                {pro ? <SmallButton label="Set Free" tone="quiet" onPress={() => void setPlan(o, 'free')} colors={colors} /> : null}
+                <SmallButton label={pro ? '+1 year Pro' : t('Make Pro')} onPress={() => void setPlan(o, 'pro')} colors={colors} />
+                {pro ? <SmallButton label={t('Set Free')} tone="quiet" onPress={() => void setPlan(o, 'free')} colors={colors} /> : null}
               </View>
             )}
           </View>

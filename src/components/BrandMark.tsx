@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { initialsFor } from '@/lib/calendar-context';
+import { t } from '@/lib/i18n';
 
 /** The organization's logo, or its initials when there is no logo. */
 export function BrandMark({
@@ -25,7 +26,7 @@ export function BrandMark({
         source={{ uri: logoUrl }}
         style={[styles.logo, { width: size, height: size, borderRadius: radius, borderColor: colors.border }]}
         contentFit="contain"
-        accessibilityLabel={name ? `${name} logo` : 'Organization logo'}
+        accessibilityLabel={name ? t('{name} logo', { name }) : t('Organization logo')}
         onError={() => setFailed(true)}
       />
     );
@@ -34,7 +35,7 @@ export function BrandMark({
   return (
     <View
       style={[styles.fallback, { width: size, height: size, borderRadius: radius, backgroundColor: colors.primary }]}
-      accessibilityLabel={name ? `${name} logo` : 'Calendar'}
+      accessibilityLabel={name ? t('{name} logo', { name }) : t('Calendar')}
     >
       {name ? (
         <Text style={[styles.initials, { color: colors.primaryForeground, fontSize: Math.round(size * 0.36) }]}>

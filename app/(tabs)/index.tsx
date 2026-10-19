@@ -17,6 +17,7 @@ import {
 import { router, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandMark } from '@/components/BrandMark';
+import { NotificationsBell } from '@/components/NotificationsBell';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useColors } from '@/hooks/useColors';
 import {
@@ -39,6 +40,7 @@ import {
   weekdayLabels,
 } from '@/lib/calendar-date';
 import { eventPalette } from '@/constants/colors';
+import { arrowForward, backIcon, forwardIcon, t, tn } from '@/lib/i18n';
 
 type CalendarView = 'month' | 'schedule';
 
@@ -155,8 +157,8 @@ export default function CalendarScreen() {
     if (!groupOptions.length) {
       setNotice(
         elevated
-          ? 'Create your first team in Admin, then add events.'
-          : 'You are not in a team yet. Ask your calendar admin to add you to one.',
+          ? t('Create your first team in Admin, then add events.')
+          : t('You are not in a team yet. Ask your calendar admin to add you to one.'),
       );
       return;
     }
@@ -199,15 +201,15 @@ export default function CalendarScreen() {
   const submitEvent = async () => {
     const title = draft.title.trim();
     if (!title) {
-      setFormError('Give the event a name.');
+      setFormError(t('Give the event a name.'));
       return;
     }
     if (!draft.group_id) {
-      setFormError('Choose a team for this event.');
+      setFormError(t('Choose a team for this event.'));
       return;
     }
     if (!parseLocalDate(draft.date)) {
-      setFormError('Enter a valid date in YYYY-MM-DD format.');
+      setFormError(t('Enter a valid date in YYYY-MM-DD format.'));
       return;
     }
     const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -215,11 +217,11 @@ export default function CalendarScreen() {
       (draft.time_start && !timePattern.test(draft.time_start)) ||
       (draft.time_end && !timePattern.test(draft.time_end))
     ) {
-      setFormError('Enter times as HH:MM using a 24-hour clock.');
+      setFormError(t('Enter times as HH:MM using a 24-hour clock.'));
       return;
     }
     if (draft.time_start && draft.time_end && draft.time_end <= draft.time_start) {
-      setFormError('The end time has to be after the start time.');
+      setFormError(t('The end time has to be after the start time.'));
       return;
     }
     setBusy(true);
@@ -230,14 +232,14 @@ export default function CalendarScreen() {
       setTargetEvent(null);
       setNotice(
         outcome === 'pending'
-          ? 'Saved. Your team manager will review it before it is published.'
+          ? t('Saved. Your team manager will review it before it is published.')
           : targetEvent
-            ? 'Event updated.'
-            : 'Event added to the calendar.',
+            ? t('Event updated.')
+            : t('Event added to the calendar.'),
       );
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (cause) {
-      setFormError(cause instanceof Error ? cause.message : 'The event could not be saved.');
+      setFormError(cause instanceof Error ? cause.message : t('The event could not be saved.'));
     } finally {
       setBusy(false);
     }
@@ -252,9 +254,9 @@ export default function CalendarScreen() {
       setEventVisible(false);
       setTargetEvent(null);
       setDeleteConfirm(false);
-      setNotice('Event deleted.');
+      setNotice(t('Event deleted.'));
     } catch (cause) {
-      setFormError(cause instanceof Error ? cause.message : 'The event could not be deleted.');
+      setFormError(cause instanceof Error ? cause.message : t('The event could not be deleted.'));
     } finally {
       setBusy(false);
     }
@@ -265,11 +267,11 @@ export default function CalendarScreen() {
     setFormError('');
     try {
       await reviewEvent(event.id, true);
-      setNotice('Event approved.');
+      setNotice(t('Event approved.'));
       if (targetEvent?.id === event.id) setEventVisible(false);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (cause) {
-      setNotice(cause instanceof Error ? cause.message : 'The event could not be approved.');
+      setNotice(cause instanceof Error ? cause.message : t('The event could not be approved.'));
     } finally {
       setBusy(false);
     }
@@ -285,7 +287,7 @@ export default function CalendarScreen() {
   const sendBack = async () => {
     if (!rejectTarget) return;
     if (!rejectReason.trim()) {
-      setRejectError('Add a short reason before sending this back.');
+      setRejectError(t('Add a short reason before sending this back.'));
       return;
     }
     setRejectBusy(true);
@@ -293,9 +295,9 @@ export default function CalendarScreen() {
     try {
       await reviewEvent(rejectTarget.id, false, rejectReason);
       setRejectTarget(null);
-      setNotice('Event sent back to its creator.');
+      setNotice(t('Event sent back to its creator.'));
     } catch (cause) {
-      setRejectError(cause instanceof Error ? cause.message : 'The event could not be sent back.');
+      setRejectError(cause instanceof Error ? cause.message : t('The event could not be sent back.'));
     } finally {
       setRejectBusy(false);
     }
@@ -305,11 +307,11 @@ export default function CalendarScreen() {
   const groupColor = (id: string) =>
     groups.find((group) => group.id === id)?.color || eventPalette[0];
   const groupName = (id: string) =>
-    groups.find((group) => group.id === id)?.name || 'Team';
+    groups.find((group) => group.id === id)?.name || t('Team');
   const personName = (event: CalendarEvent) =>
     people.find((person) => person.id === event.assigned_to)?.full_name ||
     people.find((person) => person.id === event.created_by)?.full_name ||
-    'Unassigned';
+    t('Unassigned');
   const canReview = (event: CalendarEvent) =>
     event.status === 'pending' &&
     event.created_by !== userId &&
@@ -339,12 +341,23 @@ export default function CalendarScreen() {
             <BrandMark name={org?.name} logoUrl={org?.logo_url} size={38} />
             <View style={styles.brandText}>
               <Text numberOfLines={1} style={[styles.brandName, { color: colors.foreground }]}>
-                {org?.name ?? 'Calendar'}
+                {org?.name ?? t('Calendar')}
               </Text>
-              <Text style={[styles.brandCaption, { color: colors.mutedForeground }]}>CALENDAR</Text>
+              <Text style={[styles.brandCaption, { color: colors.mutedForeground }]}>{t('Calendar').toUpperCase()}</Text>
             </View>
           </View>
           <View style={styles.topActions}>
+            <NotificationsBell
+              onOpenEvent={(eventId, date) => {
+                const event = events.find((e) => e.id === eventId);
+                const day = parseLocalDate(event?.date ?? date ?? '');
+                if (day) {
+                  setCursor(new Date(day.getFullYear(), day.getMonth(), 1));
+                  setSelectedDate(localDateString(day));
+                }
+                if (event) openEvent(event);
+              }}
+            />
             <Pressable
               testID="new-event"
               onPress={openNewEvent}
@@ -353,7 +366,7 @@ export default function CalendarScreen() {
                 { backgroundColor: colors.primary, opacity: pressed ? 0.84 : 1 },
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Add event"
+              accessibilityLabel={t('Add event')}
             >
               <Feather name="plus" size={21} color={colors.primaryForeground} />
             </Pressable>
@@ -361,7 +374,7 @@ export default function CalendarScreen() {
               onPress={() => router.push('/(tabs)/profile')}
               style={[styles.profileButton, { backgroundColor: colors.accent }]}
               accessibilityRole="button"
-              accessibilityLabel="Open profile"
+              accessibilityLabel={t('Open profile')}
             >
               <Text style={[styles.profileInitial, { color: colors.primary }]}>
                 {profile?.initials || initialsFor(profile?.full_name)}
@@ -388,10 +401,10 @@ export default function CalendarScreen() {
         {dataError ? (
           <View style={[styles.errorBanner, { backgroundColor: colors.warningSurface }]}>
             <Text style={[styles.noticeText, { color: colors.warning }]}>
-              Calendar data could not be loaded.
+              {t('Calendar data could not be loaded.')}
             </Text>
             <Pressable onPress={() => void refresh()} accessibilityRole="button">
-              <Text style={[styles.retryText, { color: colors.primary }]}>Retry</Text>
+              <Text style={[styles.retryText, { color: colors.primary }]}>{t('Retry')}</Text>
             </Pressable>
           </View>
         ) : null}
@@ -409,10 +422,10 @@ export default function CalendarScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-                  Needs your review
+                  {t('Needs your review')}
                 </Text>
                 <Text style={[styles.sectionMeta, { color: colors.mutedForeground }]}>
-                  {reviewQueue.length} {reviewQueue.length === 1 ? 'event' : 'events'} awaiting approval
+                  {tn(reviewQueue.length, '{n} event awaiting approval', '{n} events awaiting approval')}
                 </Text>
               </View>
               <View style={[styles.countBadge, { backgroundColor: colors.warningSurface }]}>
@@ -450,7 +463,7 @@ export default function CalendarScreen() {
                     disabled={busy}
                     style={[styles.approveButton, { backgroundColor: colors.primary }]}
                     accessibilityRole="button"
-                    accessibilityLabel={`Approve ${event.title}`}
+                    accessibilityLabel={t('Approve {title}', { title: event.title })}
                   >
                     <Feather name="check" size={16} color={colors.primaryForeground} />
                   </Pressable>
@@ -459,7 +472,7 @@ export default function CalendarScreen() {
                       onPress={() => openReject(event)}
                       style={[styles.returnButton, { borderColor: colors.border }]}
                       accessibilityRole="button"
-                      accessibilityLabel={`Send back ${event.title}`}
+                      accessibilityLabel={t('Send back {title}', { title: event.title })}
                     >
                       <Feather name="corner-up-left" size={15} color={colors.secondaryForeground} />
                     </Pressable>
@@ -469,7 +482,7 @@ export default function CalendarScreen() {
             ))}
             {reviewQueue.length > 3 ? (
               <Text style={[styles.moreReviews, { color: colors.mutedForeground }]}>
-                And {reviewQueue.length - 3} more waiting
+                {t('And {n} more waiting', { n: reviewQueue.length - 3 })}
               </Text>
             ) : null}
           </View>
@@ -482,10 +495,10 @@ export default function CalendarScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-                Welcome to {org?.name ?? 'your calendar'}
+                {t('Welcome to {name}', { name: org?.name ?? '' })}
               </Text>
               <Text style={[styles.sectionMeta, { color: colors.mutedForeground }]}>
-                Start by creating your teams, then add the people who work in them.
+                {t('Start by creating your teams, then add the people who work in them.')}
               </Text>
               <Pressable
                 testID="open-admin-setup"
@@ -493,8 +506,8 @@ export default function CalendarScreen() {
                 style={[styles.setupButton, { backgroundColor: colors.primary }]}
                 accessibilityRole="button"
               >
-                <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Set up teams</Text>
-                <Feather name="arrow-right" size={15} color={colors.primaryForeground} />
+                <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>{t('Set up teams')}</Text>
+                <Feather name={arrowForward()} size={15} color={colors.primaryForeground} />
               </Pressable>
             </View>
           </View>
@@ -504,7 +517,7 @@ export default function CalendarScreen() {
           <View style={[styles.errorBanner, { backgroundColor: colors.warningSurface }]}>
             <Feather name="info" size={15} color={colors.warning} />
             <Text style={[styles.noticeText, { color: colors.warning }]}>
-              You are not in a team yet, so you can see events but not add them. Ask your calendar admin to add you to a team.
+              {t('You are not in a team yet, so you can see events but not add them. Ask your calendar admin to add you to a team.')}
             </Text>
           </View>
         ) : null}
@@ -515,7 +528,7 @@ export default function CalendarScreen() {
               {monthTitle(cursor)}
             </Text>
             <Text style={[styles.monthSub, { color: colors.mutedForeground }]}>
-              {visibleEvents.length} {visibleEvents.length === 1 ? 'event' : 'events'} in view
+              {tn(visibleEvents.length, '{n} event in view', '{n} events in view')}
             </Text>
           </View>
           <Pressable
@@ -523,23 +536,23 @@ export default function CalendarScreen() {
             style={[styles.todayButton, { borderColor: colors.border }]}
             accessibilityRole="button"
           >
-            <Text style={[styles.todayText, { color: colors.primary }]}>Today</Text>
+            <Text style={[styles.todayText, { color: colors.primary }]}>{t('Today')}</Text>
           </Pressable>
           <Pressable
             onPress={() => changeMonth(-1)}
             style={[styles.arrowButton, { backgroundColor: colors.card, borderColor: colors.border }]}
             accessibilityRole="button"
-            accessibilityLabel="Previous month"
+            accessibilityLabel={t('Previous month')}
           >
-            <Feather name="chevron-left" size={19} color={colors.secondaryForeground} />
+            <Feather name={backIcon()} size={19} color={colors.secondaryForeground} />
           </Pressable>
           <Pressable
             onPress={() => changeMonth(1)}
             style={[styles.arrowButton, { backgroundColor: colors.card, borderColor: colors.border }]}
             accessibilityRole="button"
-            accessibilityLabel="Next month"
+            accessibilityLabel={t('Next month')}
           >
-            <Feather name="chevron-right" size={19} color={colors.secondaryForeground} />
+            <Feather name={forwardIcon()} size={19} color={colors.secondaryForeground} />
           </Pressable>
         </View>
 
@@ -575,7 +588,7 @@ export default function CalendarScreen() {
                   { color: view === mode ? colors.foreground : colors.secondaryForeground },
                 ]}
               >
-                {mode === 'month' ? 'Month' : 'Schedule'}
+                {mode === 'month' ? t('Month') : t('Schedule')}
               </Text>
             </Pressable>
           ))}
@@ -588,7 +601,7 @@ export default function CalendarScreen() {
             contentContainerStyle={styles.groupFilters}
           >
             <FilterChip
-              label="All teams"
+              label={t('All teams')}
               selected={groupFilter === null}
               onPress={() => setGroupFilter(null)}
             />
@@ -619,7 +632,7 @@ export default function CalendarScreen() {
             ]}
           >
             <View style={styles.weekdayRow}>
-              {weekdayLabels.map((day, index) => (
+              {weekdayLabels().map((day, index) => (
                 <Text
                   key={`${day}-${index}`}
                   style={[styles.weekday, { color: colors.mutedForeground }]}
@@ -649,7 +662,7 @@ export default function CalendarScreen() {
                       },
                     ]}
                     accessibilityRole="button"
-                    accessibilityLabel={`${dateTitle(dateKey)}${dayEvents.length ? `, ${dayEvents.length} events` : ''}`}
+                    accessibilityLabel={`${dateTitle(dateKey)}${dayEvents.length ? `, ${tn(dayEvents.length, '{n} event', '{n} events')}` : ''}`}
                     accessibilityState={{ selected }}
                   >
                     <View
@@ -697,12 +710,12 @@ export default function CalendarScreen() {
         <View style={styles.agendaHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              {view === 'month' ? dateTitle(selectedDate) : 'This month'}
+              {view === 'month' ? dateTitle(selectedDate) : t('This month')}
             </Text>
             <Text style={[styles.sectionMeta, { color: colors.mutedForeground }]}>
               {view === 'month'
-                ? `${selectedEvents.length} ${selectedEvents.length === 1 ? 'event' : 'events'}`
-                : `${monthEvents.length} ${monthEvents.length === 1 ? 'event' : 'events'}`}
+                ? tn(selectedEvents.length, '{n} event', '{n} events')
+                : tn(monthEvents.length, '{n} event', '{n} events')}
             </Text>
           </View>
           {view === 'month' ? (
@@ -715,9 +728,9 @@ export default function CalendarScreen() {
               accessibilityRole="button"
             >
               <Text style={[styles.seeScheduleText, { color: colors.primary }]}>
-                Full schedule
+                {t('Full schedule')}
               </Text>
-              <Feather name="arrow-right" size={15} color={colors.primary} />
+              <Feather name={arrowForward()} size={15} color={colors.primary} />
             </Pressable>
           ) : null}
         </View>
@@ -726,7 +739,7 @@ export default function CalendarScreen() {
           <View style={[styles.loadingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <ActivityIndicator color={colors.primary} />
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              Loading your team calendar…
+              {t('Loading your team calendar…')}
             </Text>
           </View>
         ) : view === 'month' ? (
@@ -784,7 +797,7 @@ export default function CalendarScreen() {
           <Pressable
             style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(4, 14, 24, 0.48)' }]}
             onPress={() => setEventVisible(false)}
-            accessibilityLabel="Close event"
+            accessibilityLabel={t('Close event')}
           />
           <View
             style={[
@@ -806,7 +819,7 @@ export default function CalendarScreen() {
               <View style={styles.sheetHeader}>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
-                    {editMode ? (targetEvent ? 'Edit event' : 'New event') : targetEvent?.title}
+                    {editMode ? (targetEvent ? t('Edit event') : t('New event')) : targetEvent?.title}
                   </Text>
                   {!editMode && targetEvent ? (
                     <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>
@@ -818,7 +831,7 @@ export default function CalendarScreen() {
                   onPress={() => setEventVisible(false)}
                   style={styles.closeButton}
                   accessibilityRole="button"
-                  accessibilityLabel="Close"
+                  accessibilityLabel={t('Close')}
                 >
                   <Feather name="x" size={21} color={colors.secondaryForeground} />
                 </Pressable>
@@ -856,10 +869,10 @@ export default function CalendarScreen() {
               {deleteConfirm ? (
                 <View style={[styles.confirmBox, { backgroundColor: colors.warningSurface }]}>
                   <Text style={[styles.confirmTitle, { color: colors.foreground }]}>
-                    Delete this event?
+                    {t('Delete this event?')}
                   </Text>
                   <Text style={[styles.confirmCopy, { color: colors.secondaryForeground }]}>
-                    This cannot be undone.
+                    {t('This cannot be undone.')}
                   </Text>
                   <View style={styles.modalActions}>
                     <Pressable
@@ -867,7 +880,7 @@ export default function CalendarScreen() {
                       style={[styles.secondaryButton, { borderColor: colors.border }]}
                     >
                       <Text style={[styles.secondaryButtonText, { color: colors.secondaryForeground }]}>
-                        Keep event
+                        {t('Keep event')}
                       </Text>
                     </Pressable>
                     <Pressable
@@ -879,7 +892,7 @@ export default function CalendarScreen() {
                         <ActivityIndicator color={colors.destructiveForeground} />
                       ) : (
                         <Text style={[styles.primaryButtonText, { color: colors.destructiveForeground }]}>
-                          Delete
+                          {t('Delete')}
                         </Text>
                       )}
                     </Pressable>
@@ -892,7 +905,7 @@ export default function CalendarScreen() {
                       onPress={() => setDeleteConfirm(true)}
                       style={[styles.iconDangerButton, { borderColor: colors.border }]}
                       accessibilityRole="button"
-                      accessibilityLabel="Delete event"
+                      accessibilityLabel={t('Delete event')}
                     >
                       <Feather name="trash-2" size={18} color={colors.destructive} />
                     </Pressable>
@@ -905,7 +918,7 @@ export default function CalendarScreen() {
                     style={[styles.secondaryButton, { borderColor: colors.border }]}
                   >
                     <Text style={[styles.secondaryButtonText, { color: colors.secondaryForeground }]}>
-                      Cancel
+                      {t('Cancel')}
                     </Text>
                   </Pressable>
                   <Pressable
@@ -918,7 +931,7 @@ export default function CalendarScreen() {
                       <ActivityIndicator color={colors.primaryForeground} />
                     ) : (
                       <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>
-                        Save event
+                        {t('Save event')}
                       </Text>
                     )}
                   </Pressable>
@@ -933,7 +946,7 @@ export default function CalendarScreen() {
                           style={[styles.secondaryButton, { borderColor: colors.border }]}
                         >
                           <Text style={[styles.secondaryButtonText, { color: colors.secondaryForeground }]}>
-                            Send back
+                            {t('Send back')}
                           </Text>
                         </Pressable>
                       ) : null}
@@ -943,7 +956,7 @@ export default function CalendarScreen() {
                         style={[styles.primaryAction, { backgroundColor: colors.primary }]}
                       >
                         <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>
-                          Approve
+                          {t('Approve')}
                         </Text>
                       </Pressable>
                     </>
@@ -953,7 +966,7 @@ export default function CalendarScreen() {
                         onPress={() => setDeleteConfirm(true)}
                         style={[styles.iconDangerButton, { borderColor: colors.border }]}
                         accessibilityRole="button"
-                        accessibilityLabel="Delete event"
+                        accessibilityLabel={t('Delete event')}
                       >
                         <Feather name="trash-2" size={18} color={colors.destructive} />
                       </Pressable>
@@ -962,7 +975,7 @@ export default function CalendarScreen() {
                         style={[styles.primaryAction, { backgroundColor: colors.primary }]}
                       >
                         <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>
-                          Edit event
+                          {t('Edit event')}
                         </Text>
                       </Pressable>
                     </>
@@ -984,7 +997,7 @@ export default function CalendarScreen() {
           <Pressable
             style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(4, 14, 24, 0.5)' }]}
             onPress={() => setRejectTarget(null)}
-            accessibilityLabel="Close send back dialog"
+            accessibilityLabel={t('Close send back dialog')}
           />
           <KeyboardAwareScrollViewCompat
             style={styles.rejectScroll}
@@ -993,9 +1006,9 @@ export default function CalendarScreen() {
             keyboardShouldPersistTaps="handled"
           >
             <View style={[styles.rejectCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Send event back</Text>
+              <Text style={[styles.sheetTitle, { color: colors.foreground }]}>{t('Send event back')}</Text>
               <Text style={[styles.sheetSubtitle, { color: colors.secondaryForeground }]}>
-                Add a short reason for {rejectTarget?.title ?? 'this event'}.
+                {t('Add a short reason for {title}.', { title: rejectTarget?.title ?? '' })}
               </Text>
               {rejectError ? (
                 <Text style={[styles.formErrorText, { color: colors.destructive }]}>{rejectError}</Text>
@@ -1004,7 +1017,7 @@ export default function CalendarScreen() {
                 testID="send-back-reason"
                 value={rejectReason}
                 onChangeText={setRejectReason}
-                placeholder="What needs to change?"
+                placeholder={t('What needs to change?')}
                 placeholderTextColor={colors.mutedForeground}
                 multiline
                 textAlignVertical="top"
@@ -1019,7 +1032,7 @@ export default function CalendarScreen() {
                   style={[styles.secondaryButton, { borderColor: colors.border }]}
                 >
                   <Text style={[styles.secondaryButtonText, { color: colors.secondaryForeground }]}>
-                    Cancel
+                    {t('Cancel')}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -1031,7 +1044,7 @@ export default function CalendarScreen() {
                     <ActivityIndicator color={colors.primaryForeground} />
                   ) : (
                     <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>
-                      Send back
+                      {t('Send back')}
                     </Text>
                   )}
                 </Pressable>
@@ -1123,9 +1136,9 @@ function EventCard({
             {event.title}
           </Text>
           {event.status === 'pending' ? (
-            <StatusPill label="Waiting" kind="warning" />
+            <StatusPill label={t('Waiting')} kind="warning" />
           ) : event.status === 'rejected' ? (
-            <StatusPill label="Sent back" kind="danger" />
+            <StatusPill label={t('Sent back')} kind="danger" />
           ) : null}
         </View>
         <Text numberOfLines={1} style={[styles.eventMeta, { color: colors.mutedForeground }]}>
@@ -1136,7 +1149,7 @@ function EventCard({
           {assignedName}
         </Text>
       </View>
-      <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
+      <Feather name={forwardIcon()} size={17} color={colors.mutedForeground} />
     </Pressable>
   );
 }
@@ -1177,13 +1190,13 @@ function EmptyDay({
       <View style={[styles.emptyIcon, { backgroundColor: colors.accent }]}>
         <Feather name="calendar" size={21} color={colors.primary} />
       </View>
-      <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Nothing scheduled</Text>
+      <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t('Nothing scheduled')}</Text>
       <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-        Add an event for {shortDateTitle(selectedDate)} and it will appear here.
+        {t('Add an event for {date} and it will appear here.', { date: shortDateTitle(selectedDate) })}
       </Text>
       <Pressable onPress={onAdd} style={[styles.emptyAction, { backgroundColor: colors.accent }]}>
         <Feather name="plus" size={16} color={colors.primary} />
-        <Text style={[styles.emptyActionText, { color: colors.primary }]}>Add an event</Text>
+        <Text style={[styles.emptyActionText, { color: colors.primary }]}>{t('Add an event')}</Text>
       </Pressable>
     </View>
   );
@@ -1206,25 +1219,25 @@ function EventForm({
 }) {
   return (
     <View>
-      <Text style={[styles.fieldLabel, { color: colors.secondaryForeground }]}>Event name</Text>
+      <Text style={[styles.fieldLabel, { color: colors.secondaryForeground }]}>{t('Event name')}</Text>
       <TextInput
         testID={`${testIDPrefix}-title`}
         value={draft.title}
         onChangeText={(value) => setField('title', value)}
-        placeholder="Name this event"
+        placeholder={t('Name this event')}
         placeholderTextColor={colors.mutedForeground}
         autoCapitalize="sentences"
         style={[styles.fieldInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]}
       />
 
       <Text style={[styles.fieldLabel, styles.fieldGap, { color: colors.secondaryForeground }]}>
-        Date
+        {t('Date')}
       </Text>
       <TextInput
         testID={`${testIDPrefix}-date`}
         value={draft.date}
         onChangeText={(value) => setField('date', value)}
-        placeholder="YYYY-MM-DD"
+        placeholder={t('YYYY-MM-DD')}
         placeholderTextColor={colors.mutedForeground}
         autoCapitalize="none"
         keyboardType="numbers-and-punctuation"
@@ -1234,13 +1247,13 @@ function EventForm({
       <View style={styles.twoFields}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.fieldLabel, styles.fieldGap, { color: colors.secondaryForeground }]}>
-            Start time
+            {t('Start time')}
           </Text>
           <TextInput
             testID={`${testIDPrefix}-start`}
             value={draft.time_start}
             onChangeText={(value) => setField('time_start', value)}
-            placeholder="Optional"
+            placeholder={t('Optional')}
             placeholderTextColor={colors.mutedForeground}
             keyboardType="numbers-and-punctuation"
             style={[styles.fieldInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]}
@@ -1248,13 +1261,13 @@ function EventForm({
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.fieldLabel, styles.fieldGap, { color: colors.secondaryForeground }]}>
-            End time
+            {t('End time')}
           </Text>
           <TextInput
             testID={`${testIDPrefix}-end`}
             value={draft.time_end}
             onChangeText={(value) => setField('time_end', value)}
-            placeholder="Optional"
+            placeholder={t('Optional')}
             placeholderTextColor={colors.mutedForeground}
             keyboardType="numbers-and-punctuation"
             style={[styles.fieldInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]}
@@ -1262,13 +1275,13 @@ function EventForm({
         </View>
       </View>
       <Text style={[styles.fieldHint, { color: colors.mutedForeground }]}>
-        Use 24-hour time, such as 09:30. Leave blank for all day.
+        {t('Use 24-hour time, such as 09:30. Leave blank for all day.')}
       </Text>
 
       {groups.length ? (
         <>
           <Text style={[styles.fieldLabel, styles.fieldGap, { color: colors.secondaryForeground }]}>
-            Team
+            {t('Team')}
           </Text>
           <View style={styles.choiceWrap}>
             {groups.map((group) => {
@@ -1310,11 +1323,11 @@ function EventForm({
       ) : null}
 
       <Text style={[styles.fieldLabel, styles.fieldGap, { color: colors.secondaryForeground }]}>
-        Assign to
+        {t('Assign to')}
       </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.choiceScroll}>
         <ChoiceChip
-          label="No one"
+          label={t('No one')}
           selected={!draft.assigned_to}
           onPress={() => setField('assigned_to', '')}
         />
@@ -1329,14 +1342,14 @@ function EventForm({
       </ScrollView>
 
       <Text style={[styles.fieldLabel, styles.fieldGap, { color: colors.secondaryForeground }]}>
-        Visibility
+        {t('Visibility')}
       </Text>
       <View style={styles.choiceWrap}>
         {(
           [
-            ['private', 'Just me'],
-            ['group', 'My team'],
-            ['company', 'Everyone'],
+            ['private', t('Just me')],
+            ['group', t('My team')],
+            ['company', t('Everyone')],
           ] as const
         ).map(([value, label]) => (
           <ChoiceChip
@@ -1349,7 +1362,7 @@ function EventForm({
       </View>
 
       <Text style={[styles.fieldLabel, styles.fieldGap, { color: colors.secondaryForeground }]}>
-        Calendar color
+        {t('Calendar color')}
       </Text>
       <View style={styles.colorChoices}>
         {eventPalette.map((color) => (
@@ -1362,7 +1375,7 @@ function EventForm({
               draft.color === color && { borderColor: colors.foreground, borderWidth: 2 },
             ]}
             accessibilityRole="button"
-            accessibilityLabel="Choose event color"
+            accessibilityLabel={t('Choose event color')}
             accessibilityState={{ selected: draft.color === color }}
           >
             {draft.color === color ? <Feather name="check" size={14} color="#FFFFFF" /> : null}
@@ -1371,13 +1384,13 @@ function EventForm({
       </View>
 
       <Text style={[styles.fieldLabel, styles.fieldGap, { color: colors.secondaryForeground }]}>
-        Notes
+        {t('Notes')}
       </Text>
       <TextInput
         testID={`${testIDPrefix}-notes`}
         value={draft.notes}
         onChangeText={(value) => setField('notes', value)}
-        placeholder="Add context or details"
+        placeholder={t('Add context or details')}
         placeholderTextColor={colors.mutedForeground}
         multiline
         textAlignVertical="top"
@@ -1445,10 +1458,10 @@ function EventDetails({
         <StatusPill
           label={
             event.status === 'pending'
-              ? 'Waiting for approval'
+              ? t('Waiting for approval')
               : event.status === 'rejected'
-                ? 'Sent back'
-                : 'Approved'
+                ? t('Sent back')
+                : t('Approved')
           }
           kind={
             event.status === 'pending'
@@ -1459,14 +1472,14 @@ function EventDetails({
           }
         />
       </View>
-      <InfoRow icon="clock" label="When" value={`${dateTitle(event.date)} · ${displayTime(event.time_start)}${event.time_end ? ` – ${displayTime(event.time_end)}` : ''}`} />
-      <InfoRow icon="users" label="Team" value={groupName} detailColor={groupColor} />
-      <InfoRow icon="user" label="Assigned to" value={assignedName} />
-      <InfoRow icon="eye" label="Visibility" value={event.visibility === 'company' ? 'Everyone' : event.visibility === 'group' ? 'Team' : 'Just me'} />
-      {event.notes ? <InfoRow icon="file-text" label="Notes" value={event.notes} multiline /> : null}
+      <InfoRow icon="clock" label={t('When')} value={`${dateTitle(event.date)} · ${displayTime(event.time_start)}${event.time_end ? ` – ${displayTime(event.time_end)}` : ''}`} />
+      <InfoRow icon="users" label={t('Team')} value={groupName} detailColor={groupColor} />
+      <InfoRow icon="user" label={t('Assigned to')} value={assignedName} />
+      <InfoRow icon="eye" label={t('Visibility')} value={event.visibility === 'company' ? t('Everyone') : event.visibility === 'group' ? t('Team') : t('Just me')} />
+      {event.notes ? <InfoRow icon="file-text" label={t('Notes')} value={event.notes} multiline /> : null}
       {event.rejection_note ? (
         <View style={[styles.rejectionBox, { backgroundColor: colors.accent }]}>
-          <Text style={[styles.fieldLabel, { color: colors.destructive }]}>Manager’s note</Text>
+          <Text style={[styles.fieldLabel, { color: colors.destructive }]}>{t('Manager’s note')}</Text>
           <Text style={[styles.detailValue, { color: colors.secondaryForeground }]}>
             {event.rejection_note}
           </Text>
@@ -1520,10 +1533,10 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  brand: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10, marginRight: 10 },
+  brand: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10, marginEnd: 10 },
   brandText: { flex: 1, minWidth: 0 },
   brandMark: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  brandName: { fontSize: 15, fontFamily: 'Inter_700Bold', letterSpacing: -0.2 },
+  brandName: { fontSize: 15, fontFamily: 'Inter_700Bold', letterSpacing: -0.2, textAlign: 'auto', writingDirection: 'auto' },
   brandCaption: { fontSize: 9, fontFamily: 'Inter_600SemiBold', letterSpacing: 1.2, marginTop: 2 },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   addButton: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },

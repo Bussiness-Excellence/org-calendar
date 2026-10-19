@@ -4,9 +4,13 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandMark } from '@/components/BrandMark';
 import { PasswordEditor } from '@/components/PasswordEditor';
+import { PreferencesCard } from '@/components/PreferenceControls';
+import { useNotifications } from '@/lib/notifications';
+import { Platform } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { initialsFor, roleLabel, useCalendar } from '@/lib/calendar-context';
 import { APP_NAME } from '@/lib/supabase-config';
+import { t } from '@/lib/i18n';
 
 export default function ProfileScreen() {
   const colors = useColors();
@@ -16,6 +20,7 @@ export default function ProfileScreen() {
   const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState('');
   const group = groups.find((item) => item.id === profile?.group_id);
+  const { permission, requestPermission } = useNotifications();
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -23,7 +28,7 @@ export default function ProfileScreen() {
     try {
       await signOut();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not sign out.');
+      setError(cause instanceof Error ? cause.message : t('Could not sign out.'));
       setSigningOut(false);
     }
   };
@@ -38,7 +43,7 @@ export default function ProfileScreen() {
             <Text numberOfLines={1} style={[styles.kicker, { color: colors.primary }]}>
               {(org?.name ?? APP_NAME).toUpperCase()}
             </Text>
-            <Text style={[styles.title, { color: colors.foreground }]}>Your account</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>{t('Your account')}</Text>
           </View>
           <BrandMark name={org?.name} logoUrl={org?.logo_url} size={42} />
         </View>
@@ -64,14 +69,21 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <Text style={[styles.sectionHeading, { color: colors.foreground }]}>Security</Text>
+        <Text style={[styles.sectionHeading, { color: colors.foreground }]}>{t('Preferences')}</Text>
+        <PreferencesCard
+          remindersSupported={Platform.OS !== 'web'}
+          permission={permission}
+          onRequestPermission={() => void requestPermission()}
+        />
+
+        <Text style={[styles.sectionHeading, { color: colors.foreground }]}>{t('Security')}</Text>
         <View style={[styles.securityCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.securityIcon, { backgroundColor: colors.accent }]}>
             <Feather name="lock" size={17} color={colors.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.securityTitle, { color: colors.foreground }]}>Password</Text>
-            <Text style={[styles.securityCopy, { color: colors.mutedForeground }]}>Keep your calendar account secure.</Text>
+            <Text style={[styles.securityTitle, { color: colors.foreground }]}>{t('Password')}</Text>
+            <Text style={[styles.securityCopy, { color: colors.mutedForeground }]}>{t('Keep your calendar account secure.')}</Text>
           </View>
           <Pressable
             testID="change-password"
@@ -79,17 +91,17 @@ export default function ProfileScreen() {
             style={[styles.changeButton, { backgroundColor: colors.accent }]}
             accessibilityRole="button"
           >
-            <Text style={[styles.changeText, { color: colors.primary }]}>Change</Text>
+            <Text style={[styles.changeText, { color: colors.primary }]}>{t('Change')}</Text>
           </Pressable>
         </View>
 
         <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.infoHeading}>
             <Feather name="shield" size={17} color={colors.primary} />
-            <Text style={[styles.securityTitle, { color: colors.foreground }]}>Private to {org?.name ?? 'your organization'}</Text>
+            <Text style={[styles.securityTitle, { color: colors.foreground }]}>{t('Private to {name}', { name: org?.name ?? '' })}</Text>
           </View>
           <Text style={[styles.infoCopy, { color: colors.mutedForeground }]}>
-            Only people in your organization can see its calendar. Your team and permissions are managed by your super admin.
+            {t('Only people in your organization can see its calendar. Your team and permissions are managed by your super admin.')}
           </Text>
         </View>
 
@@ -114,7 +126,7 @@ export default function ProfileScreen() {
           ) : (
             <>
               <Feather name="log-out" size={17} color={colors.destructive} />
-              <Text style={[styles.signOutText, { color: colors.destructive }]}>Sign out</Text>
+              <Text style={[styles.signOutText, { color: colors.destructive }]}>{t('Sign out')}</Text>
             </>
           )}
         </Pressable>

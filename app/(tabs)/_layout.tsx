@@ -2,13 +2,14 @@ import { Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { Redirect, Tabs } from 'expo-router';
 import React from 'react';
-import { ActivityIndicator, Platform, StyleSheet, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { isSuperAdmin, useCalendar } from '@/lib/calendar-context';
+import { t } from '@/lib/i18n';
 
 export default function TabLayout() {
   const colors = useColors();
-  const isDark = useColorScheme() === 'dark';
+  const isDark = colors.scheme === 'dark';
   const isIOS = Platform.OS === 'ios';
   const isWeb = Platform.OS === 'web';
   const { authLoading, userId, profile, profileLoading, org } = useCalendar();
@@ -53,14 +54,14 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Calendar',
+          title: t('Calendar'),
           tabBarIcon: ({ color }) => <Feather name="calendar" size={21} color={color} />,
         }}
       />
       <Tabs.Screen
         name="admin"
         options={{
-          title: 'Admin',
+          title: t('Admin'),
           href: showAdmin ? undefined : null,
           tabBarIcon: ({ color }) => <Feather name="sliders" size={21} color={color} />,
         }}
@@ -68,7 +69,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Account',
+          title: t('Account'),
           tabBarIcon: ({ color }) => <Feather name="user" size={21} color={color} />,
         }}
       />

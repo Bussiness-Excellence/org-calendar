@@ -17,7 +17,8 @@ export const UPGRADE_URL =
   process.env.EXPO_PUBLIC_UPGRADE_URL ||
   'mailto:business.excellence.eipico@gmail.com?subject=Upgrade%20to%20Pro';
 
-export const PRO_PRICE = '$50 / year';
+/** Shown in the app; translated where it is displayed. */
+export const PRO_PRICE = '$50';
 export const FREE_USER_LIMIT = 10;
 
 export const isConfigured = !!SUPABASE_URL && !!SUPABASE_ANON_KEY;

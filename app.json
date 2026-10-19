@@ -23,7 +23,10 @@
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#0B3E9A"
       },
-      "permissions": []
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png",
@@ -41,6 +44,12 @@
           "photosPermission": "Choose a photo to use as your organization's logo.",
           "cameraPermission": false,
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#0B4D89"
         }
       ]
     ],
