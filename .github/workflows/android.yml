@@ -53,6 +53,18 @@ jobs:
           fi
       - name: Name the APK
         run: cp android/app/build/outputs/apk/release/app-release.apk OrgCalendar-test.apk
+      - name: Publish the build log if the build failed
+        if: failure()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-log-${{ github.run_number }}
+          name: Build log ${{ github.run_number }} (failed)
+          prerelease: true
+          make_latest: false
+          files: |
+            android/build.log
+            prebuild.log
+          fail_on_unmatched_files: false
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: test-${{ github.run_number }}
