@@ -40,6 +40,14 @@ jobs:
             echo "::error title=Prebuild failed::$(tail -40 prebuild.log | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
             exit 1
           fi
+      - name: Check Expo autolinking
+        working-directory: android
+        run: |
+          set -o pipefail
+          E="$GITHUB_WORKSPACE/node_modules/expo/android"
+          if ! node --no-warnings --eval "require('expo/bin/autolinking')" expo-modules-autolinking mirror-kotlin-inline-modules --kotlin-files-mirror-directory "$E/src/main/java/inline/modules/" --inline-modules-list-directory "$E/build/inline/modules/" --watched-directories-serialized "[]" > autolink.log 2>&1; then
+            cp autolink.log build.log; exit 1
+          fi
       - name: Build the APK
         working-directory: android
         run: |
