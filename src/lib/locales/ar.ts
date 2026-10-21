@@ -42,6 +42,7 @@ export const ar: Record<string, string> = {
   "Free for up to {n} people. Upgrade any time for more people and event approvals.": "مجاني حتى {n} أشخاص. يمكنك الترقية في أي وقت لإضافة المزيد من الأشخاص وتفعيل اعتماد الفعاليات.",
   "Create organization": "إنشاء المؤسسة",
   "Sign out": "تسجيل الخروج",
+  "Organization departments and sections": "إدارات المؤسسة وأقسامها",
   "Calendar": "التقويم",
   "Admin": "الإدارة",
   "Account": "الحساب",

@@ -31,8 +31,8 @@
     "web": {
       "favicon": "./assets/images/icon.png",
       "output": "single",
-      "name": "Org Calendar",
-      "shortName": "Calendar",
+      "name": "Org Calendar: Organization departments and sections",
+      "shortName": "Org Calendar",
       "themeColor": "#0B4D89",
       "backgroundColor": "#EEF2F6"
     },

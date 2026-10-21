@@ -42,6 +42,7 @@ export const fr: Record<string, string> = {
   "Free for up to {n} people. Upgrade any time for more people and event approvals.": "Gratuit jusqu’à {n} personnes. Passez à l’offre supérieure à tout moment pour plus de personnes et la validation des événements.",
   "Create organization": "Créer l’organisation",
   "Sign out": "Se déconnecter",
+  "Organization departments and sections": "Départements et sections de l’organisation",
   "Calendar": "Calendrier",
   "Admin": "Admin",
   "Account": "Compte",

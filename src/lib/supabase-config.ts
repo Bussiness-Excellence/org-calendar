@@ -15,6 +15,9 @@ import { Platform } from 'react-native';
 export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 export const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 export const APP_NAME = process.env.EXPO_PUBLIC_APP_NAME || 'Org Calendar';
+/** Shown under the name on the sign-in screen and in the browser tab. */
+export const APP_TAGLINE = 'Organization departments and sections';
+export const APP_FULL_NAME = `${APP_NAME}: ${APP_TAGLINE}`;
 export const UPGRADE_URL =
   process.env.EXPO_PUBLIC_UPGRADE_URL ||
   'mailto:business.excellence.eipico@gmail.com?subject=Upgrade%20to%20Pro';

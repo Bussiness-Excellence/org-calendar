@@ -12,7 +12,7 @@ import {
 import { Platform } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { callAdmin, supabase } from './supabase';
-import { APP_NAME } from './supabase-config';
+import { APP_NAME, APP_TAGLINE } from './supabase-config';
 import { t } from '@/lib/i18n';
 
 export type Role = 'super_admin' | 'group_admin' | 'user';
@@ -283,7 +283,7 @@ export function CalendarProvider({ children }: PropsWithChildren) {
   // Show the company's name in the browser tab.
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.title = org?.name ? `${org.name} · ${t('Calendar')}` : APP_NAME;
+      document.title = org?.name ? `${org.name} · ${t('Calendar')}` : `${APP_NAME}: ${t(APP_TAGLINE)}`;
     }
   }, [org?.name]);
 

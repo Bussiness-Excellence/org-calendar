@@ -19,7 +19,7 @@ import { LanguageSwitch } from '@/components/PreferenceControls';
 import { useColors } from '@/hooks/useColors';
 import { getRememberedEmail, rememberEmail, useCalendar } from '@/lib/calendar-context';
 import { pickLogo, type PickedLogo } from '@/lib/logo-picker';
-import { APP_NAME, FREE_USER_LIMIT, isConfigured, PRIVACY_URL } from '@/lib/supabase-config';
+import { APP_NAME, APP_TAGLINE, FREE_USER_LIMIT, isConfigured, PRIVACY_URL } from '@/lib/supabase-config';
 import * as Linking from 'expo-linking';
 import { arrowBack, t } from '@/lib/i18n';
 
@@ -92,6 +92,7 @@ function ProductHeader({ subtitle }: { subtitle: string }) {
         <Image source={require('../assets/images/icon.png')} style={styles.brandIcon} accessibilityLabel={`${APP_NAME} icon`} />
         <Text style={[styles.brandName, { color: colors.primary }]}>{APP_NAME.toUpperCase()}</Text>
       </View>
+      <Text style={[styles.tagline, { color: colors.mutedForeground }]}>{t(APP_TAGLINE)}</Text>
       <View style={[styles.brandRule, { backgroundColor: colors.primary }]} />
       <Text style={[styles.subtitle, { color: colors.secondaryForeground }]}>{subtitle}</Text>
     </>
@@ -463,6 +464,7 @@ const styles = StyleSheet.create({
   brandBlock: { alignItems: 'center', marginBottom: 14 },
   brandIcon: { width: 56, height: 56, borderRadius: 16, marginBottom: 9 },
   brandName: { fontSize: 16, fontFamily: 'Inter_700Bold', letterSpacing: 1.6 },
+  tagline: { fontSize: 12, fontFamily: 'Inter_500Medium', textAlign: 'center', marginTop: 6 },
   brandRule: { height: 2, opacity: 0.16, marginBottom: 16 },
   title: { fontSize: 22, fontFamily: 'Inter_700Bold', letterSpacing: -0.4 },
   subtitle: { fontSize: 14, lineHeight: 21, marginTop: 5, marginBottom: 18 },
