@@ -19,7 +19,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Wake the database
         run: |
-          set -a; . ./.env; set +a
+          EXPO_PUBLIC_SUPABASE_URL=$(grep '^EXPO_PUBLIC_SUPABASE_URL=' .env | cut -d= -f2-)
+          EXPO_PUBLIC_SUPABASE_ANON_KEY=$(grep '^EXPO_PUBLIC_SUPABASE_ANON_KEY=' .env | cut -d= -f2-)
           code=$(curl -s -o /dev/null -w '%{http_code}' \
             "$EXPO_PUBLIC_SUPABASE_URL/rest/v1/organizations?select=id&limit=1" \
             -H "apikey: $EXPO_PUBLIC_SUPABASE_ANON_KEY")
