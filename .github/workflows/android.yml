@@ -10,6 +10,10 @@ on:
       - 'README.md'
       - 'supabase/**'
       - '.github/workflows/web.yml'
+      - '.github/workflows/health.yml'
+      - '.github/workflows/backup.yml'
+      - '.github/heartbeat.txt'
+      - 'docs/**'
   workflow_dispatch:
 
 permissions:
@@ -108,5 +112,5 @@ jobs:
           make_latest: true
           files: OrgCalendar-test.apk
           body: |
-            Test build of Org Calendar for Android, connected to the TEST database.
+            Org Calendar for Android (direct install). Connected to the live database.
             Download OrgCalendar-test.apk on your phone, open it and allow installing from this source.

@@ -1,0 +1,58 @@
+# Nightly encrypted backup of every organization's data (people, teams,
+# events, notifications and logins). Kept for 90 days under the run's
+# "Artifacts". The repository is public, so the file is encrypted with
+# BACKUP_PASSPHRASE and is useless without it.
+#
+# Needs two repository secrets:
+#   SUPABASE_DB_URL     Supabase > Connect > "Session pooler" connection string, with the password filled in
+#   BACKUP_PASSPHRASE   a long random password you keep safe (needed to restore)
+# How to restore: docs/BACKUP-RESTORE.md
+name: Database backup
+
+on:
+  schedule:
+    - cron: '41 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    env:
+      DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Check secrets
+        id: check
+        run: |
+          if [ -z "$DB_URL" ] || [ -z "$PASS" ]; then
+            echo "::warning title=Backup skipped::Add the SUPABASE_DB_URL and BACKUP_PASSPHRASE secrets to turn on nightly backups."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install pg_dump 17
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          sudo apt-get install -y -q postgresql-common >/dev/null
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y >/dev/null
+          sudo apt-get install -y -q postgresql-client-17 >/dev/null
+      - name: Dump and encrypt
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          set -o pipefail
+          name="org-calendar-$(date -u +%Y-%m-%d)"
+          /usr/lib/postgresql/17/bin/pg_dump "$DB_URL" --format=custom --no-owner --no-privileges \
+            --schema=public --schema=auth --schema=storage --file=backup.dump
+          ls -la backup.dump
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:PASS -in backup.dump -out "$name.dump.enc"
+          rm backup.dump
+          echo "NAME=$name" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        if: steps.check.outputs.ready == 'true'
+        with:
+          name: ${{ env.NAME }}
+          path: ${{ env.NAME }}.dump.enc
+          retention-days: 90

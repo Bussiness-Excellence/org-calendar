@@ -4,6 +4,13 @@ name: Web app
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'supabase/**'
+      - 'docs/**'
+      - '.github/workflows/android.yml'
+      - '.github/workflows/health.yml'
+      - '.github/workflows/backup.yml'
+      - '.github/heartbeat.txt'
   workflow_dispatch:
 
 permissions:

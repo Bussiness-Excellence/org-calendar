@@ -1,0 +1,42 @@
+# Keeps the free Supabase database awake (it pauses after 7 quiet days),
+# checks that the app and its legal pages are online, and once a month
+# records a heartbeat so GitHub never switches these scheduled jobs off
+# (it does that after 60 days without repository activity).
+name: Health check
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wake the database
+        run: |
+          set -a; . ./.env; set +a
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            "$EXPO_PUBLIC_SUPABASE_URL/rest/v1/organizations?select=id&limit=1" \
+            -H "apikey: $EXPO_PUBLIC_SUPABASE_ANON_KEY")
+          echo "Database answered $code"
+          [ "$code" = "200" ] || { echo "::error title=Database not answering::HTTP $code. Open the Supabase dashboard and restore the project if it is paused."; exit 1; }
+      - name: Check the web app and legal pages
+        run: |
+          for u in "" privacy.html delete-account.html; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://bussiness-excellence.github.io/org-calendar/$u")
+            echo "$code /$u"
+            [ "$code" = "200" ] || { echo "::error title=Page down::/$u returned $code"; exit 1; }
+          done
+      - name: Monthly heartbeat
+        run: |
+          if [ "$(date -u +%d)" != "01" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then exit 0; fi
+          date -u +%Y-%m-%dT%H:%MZ > .github/heartbeat.txt
+          git config user.name "org-calendar-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/heartbeat.txt
+          git commit -m "Heartbeat [skip ci]" && git push || true
