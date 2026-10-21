@@ -21,11 +21,14 @@ jobs:
         run: |
           EXPO_PUBLIC_SUPABASE_URL=$(grep '^EXPO_PUBLIC_SUPABASE_URL=' .env | cut -d= -f2-)
           EXPO_PUBLIC_SUPABASE_ANON_KEY=$(grep '^EXPO_PUBLIC_SUPABASE_ANON_KEY=' .env | cut -d= -f2-)
+          # A public logo lookup runs a real database query without reading any company data.
           code=$(curl -s -o /dev/null -w '%{http_code}' \
-            "$EXPO_PUBLIC_SUPABASE_URL/rest/v1/organizations?select=id&limit=1" \
+            "$EXPO_PUBLIC_SUPABASE_URL/storage/v1/object/public/branding/health-check.png" \
             -H "apikey: $EXPO_PUBLIC_SUPABASE_ANON_KEY")
-          echo "Database answered $code"
-          [ "$code" = "200" ] || { echo "::error title=Database not answering::HTTP $code. Open the Supabase dashboard and restore the project if it is paused."; exit 1; }
+          auth=$(curl -s -o /dev/null -w '%{http_code}' "$EXPO_PUBLIC_SUPABASE_URL/auth/v1/health" -H "apikey: $EXPO_PUBLIC_SUPABASE_ANON_KEY")
+          echo "Storage answered $code, sign-in service answered $auth"
+          case "$code" in 200|400|404) ;; *) echo "::error title=Database not answering::Storage returned HTTP $code. Open the Supabase dashboard and restore the project if it is paused."; exit 1;; esac
+          [ "$auth" = "200" ] || { echo "::error title=Sign-in not answering::Auth health returned HTTP $auth."; exit 1; }
       - name: Check the web app and legal pages
         run: |
           for u in "" privacy.html delete-account.html; do
