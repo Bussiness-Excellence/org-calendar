@@ -2,7 +2,8 @@ import { Feather } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
-import { PRO_PRICE, UPGRADE_URL } from '@/lib/supabase-config';
+import { useCalendar } from '@/lib/calendar-context';
+import { PRO_PRICE, proYearlyTotal, SELL_IN_APP, UPGRADE_URL } from '@/lib/supabase-config';
 import { t } from '@/lib/i18n';
 
 /** Shown to super admins on the free plan, and when the people limit is hit. */
@@ -14,6 +15,8 @@ export function UpgradeCard({
   compact?: boolean;
 }) {
   const colors = useColors();
+  const { org } = useCalendar();
+  const people = org?.active_users ?? 0;
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.primary }]}>
       <View style={styles.header}>
@@ -21,7 +24,7 @@ export function UpgradeCard({
           <Feather name="zap" size={17} color={colors.primary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>{t('Upgrade to Pro · {price} / year', { price: PRO_PRICE })}</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{SELL_IN_APP ? t('Upgrade to Pro · {price} per person / year', { price: PRO_PRICE }) : t('Pro plan')}</Text>
           <Text style={[styles.copy, { color: colors.secondaryForeground }]}>
             {reason ?? t('Unlimited people and manager approval for events.')}
           </Text>
@@ -37,6 +40,12 @@ export function UpgradeCard({
           ))}
         </View>
       ) : null}
+      {SELL_IN_APP && people > 0 ? (
+        <Text style={[styles.estimate, { color: colors.secondaryForeground }]}>
+          {t('For your {n} people: {total} per year', { n: people, total: proYearlyTotal(people) })}
+        </Text>
+      ) : null}
+      {SELL_IN_APP ? (
       <Pressable
         testID="upgrade-button"
         onPress={() => void Linking.openURL(UPGRADE_URL)}
@@ -46,6 +55,7 @@ export function UpgradeCard({
         <Text style={[styles.buttonText, { color: colors.primaryForeground }]}>{t('Request Pro')}</Text>
         <Feather name="arrow-up-right" size={15} color={colors.primaryForeground} />
       </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -59,6 +69,7 @@ const styles = StyleSheet.create({
   features: { gap: 6, paddingLeft: 2 },
   feature: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   featureText: { fontSize: 12 },
+  estimate: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   button: { minHeight: 42, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   buttonText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
 });

@@ -1,4 +1,6 @@
-# Builds an installable Android APK and attaches it to a GitHub Release.
+# Builds an installable Android APK (GitHub Release) and, once the Play
+# upload key is saved as repository secrets, the signed Play Store bundle
+# (.aab, downloadable from the run's "Artifacts").
 name: Android APK
 
 on:
@@ -21,6 +23,8 @@ jobs:
   android:
     name: Android APK
     runs-on: ubuntu-latest
+    env:
+      HAS_UPLOAD_KEY: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,6 +37,17 @@ jobs:
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
       - run: npm ci
+      - name: Version number (must grow with every Play upload)
+        run: echo "ANDROID_VERSION_CODE=$((100 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+      - name: Use the Play upload key
+        if: env.HAS_UPLOAD_KEY == 'true'
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.keystore"
+          echo "ANDROID_UPLOAD_KEYSTORE=$RUNNER_TEMP/upload.keystore" >> "$GITHUB_ENV"
+          echo "ANDROID_UPLOAD_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
       - name: Generate the Android project
         run: |
           set -o pipefail
@@ -40,6 +55,8 @@ jobs:
             echo "::error title=Prebuild failed::$(tail -40 prebuild.log | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
             exit 1
           fi
+      - name: Sign release builds with the upload key
+        run: node scripts/android-release-signing.js
       - name: Check Expo autolinking
         working-directory: android
         run: |
@@ -55,7 +72,9 @@ jobs:
           # Expo 57 passes an empty list (no value) when this is unset, which breaks autolinking.
           echo 'expo.inlineModules.watchedDirectories=[]' >> gradle.properties
           set -o pipefail
-          if ! ./gradlew assembleRelease --no-daemon --stacktrace -PreactNativeArchitectures=arm64-v8a,armeabi-v7a 2>&1 | tee build.log; then
+          TASKS="assembleRelease"
+          if [ "$HAS_UPLOAD_KEY" = "true" ]; then TASKS="assembleRelease bundleRelease"; fi
+          if ! ./gradlew $TASKS --no-daemon --stacktrace -PreactNativeArchitectures=arm64-v8a,armeabi-v7a 2>&1 | tee build.log; then
             # Surface the cause as a public annotation (logs need sign-in).
             msg=$( (grep -n -A12 "What went wrong" build.log; grep -n -E "error:|ERROR:|Exception" build.log | head -25) | head -60 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
             echo "::error title=Gradle build failed::${msg}"
@@ -63,6 +82,13 @@ jobs:
           fi
       - name: Name the APK
         run: cp android/app/build/outputs/apk/release/app-release.apk OrgCalendar-test.apk
+      - name: Keep the Play Store bundle
+        if: env.HAS_UPLOAD_KEY == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: OrgCalendar-play-${{ env.ANDROID_VERSION_CODE }}
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 90
       - name: Publish the build log if the build failed
         if: failure()
         uses: softprops/action-gh-release@v2

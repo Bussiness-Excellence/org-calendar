@@ -5,7 +5,8 @@ own name, logo and super admin, and starts with an empty calendar that only
 its own people can see.
 
 - **Free:** up to 10 people per organization; events are published straight away.
-- **Pro ($50/year):** unlimited people and manager approval for events.
+- **Pro ($2.50 per active person per year):** unlimited people and manager approval for events.
+  Prices and the upgrade button show on the web only (store rules for the phone apps).
 
 ## Features
 

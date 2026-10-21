@@ -28,7 +28,7 @@ import {
 } from '@/lib/calendar-context';
 import { pickLogo } from '@/lib/logo-picker';
 import { AdminError, callAdmin, supabase } from '@/lib/supabase';
-import { FREE_USER_LIMIT } from '@/lib/supabase-config';
+import { FREE_USER_LIMIT, proYearlyTotal } from '@/lib/supabase-config';
 import { dateLocale, forwardIcon, t, tn } from '@/lib/i18n';
 
 type Colors = ReturnType<typeof useColors>;
@@ -749,6 +749,7 @@ function OwnerConsole({ colors }: { colors: Colors }) {
               <Text numberOfLines={1} style={[styles.rowTitle, { color: colors.foreground }]}>{o.name}</Text>
               <Text style={[styles.rowMeta, { color: colors.mutedForeground }]}>
                 {tn(o.active_users, '{n} person', '{n} people')} · {pro ? t('Pro until {date}', { date: o.plan_expires_at ?? '' }) : o.active_users >= 10 ? t('Free · at limit') : t('Free')} · {t('since {date}', { date: o.created_at.slice(0, 10) })}
+                {pro ? ` · ${t('{total} per year', { total: proYearlyTotal(o.active_users) })}` : ''}
               </Text>
               {o.contact ? (
                 <Text numberOfLines={1} style={[styles.rowMeta, { color: colors.mutedForeground }]}>

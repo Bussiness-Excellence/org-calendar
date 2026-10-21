@@ -4,12 +4,14 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandMark } from '@/components/BrandMark';
 import { PasswordEditor } from '@/components/PasswordEditor';
+import { DeleteAccount } from '@/components/DeleteAccount';
 import { PreferencesCard } from '@/components/PreferenceControls';
 import { useNotifications } from '@/lib/notifications';
 import { Platform } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { initialsFor, roleLabel, useCalendar } from '@/lib/calendar-context';
-import { APP_NAME } from '@/lib/supabase-config';
+import { APP_NAME, PRIVACY_URL } from '@/lib/supabase-config';
+import * as Linking from 'expo-linking';
 import { t } from '@/lib/i18n';
 
 export default function ProfileScreen() {
@@ -111,6 +113,8 @@ export default function ProfileScreen() {
           </View>
         ) : null}
 
+        <DeleteAccount />
+
         <Pressable
           testID="sign-out"
           onPress={() => void handleSignOut()}
@@ -131,7 +135,12 @@ export default function ProfileScreen() {
           )}
         </Pressable>
 
-        <Text style={[styles.footer, { color: colors.mutedForeground }]}>{APP_NAME}</Text>
+        <Text style={[styles.footer, { color: colors.mutedForeground }]}>
+          {APP_NAME} ·{' '}
+          <Text onPress={() => void Linking.openURL(PRIVACY_URL)} style={{ color: colors.primary }} accessibilityRole="link">
+            {t('Privacy policy')}
+          </Text>
+        </Text>
       </ScrollView>
       <PasswordEditor visible={passwordVisible} onClose={() => setPasswordVisible(false)} />
     </View>

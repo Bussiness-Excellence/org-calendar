@@ -3,7 +3,10 @@
 //
 //  Public:
 //    register_org     a new company signs up: name, logo, first super admin
+//  Any signed-in person:
+//    delete_self      delete my account (Google Play account-deletion requirement)
 //  Super admin of a company (always limited to THEIR company):
+//    delete_org       delete the whole organization and all its data
 //    create_user, update_user, reset_password, set_active, delete_user,
 //    last_logins, update_org
 //  App owner (platform_admins table):
@@ -78,7 +81,7 @@ async function orgPlan(admin: SupabaseClient, orgId: string) {
 }
 
 const limitReached = (limit: number) =>
-  fail(`The free plan includes up to ${limit} people. Upgrade to Pro ($50/year) to add more.`, 402, 'USER_LIMIT');
+  fail(`The free plan includes up to ${limit} people. Upgrade to Pro ($2.50 per person per year) to add more.`, 402, 'USER_LIMIT');
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -200,8 +203,53 @@ Deno.serve(async (req) => {
       .select('org_id, role, is_active')
       .eq('id', caller.id)
       .maybeSingle();
+    // Removes a whole organization: its data (cascades), its logo files and every login.
+    const deleteOrganization = async (org: string) => {
+      const { data: members } = await admin.from('user_profiles').select('id').eq('org_id', org);
+      const { data: files } = await admin.storage.from('branding').list(org);
+      if (files?.length) await admin.storage.from('branding').remove(files.map((f) => `${org}/${f.name}`));
+      const { error } = await admin.from('organizations').delete().eq('id', org);
+      if (error) throw new Error(error.message);
+      for (const m of members ?? []) await admin.auth.admin.deleteUser(m.id);
+    };
+
+    // ---------------- anyone: delete my own account ----------------
+    if (action === 'delete_self') {
+      if (!me) {
+        await admin.auth.admin.deleteUser(caller.id);
+        return json({ ok: true });
+      }
+      if (me.role === 'super_admin') {
+        const { data: others } = await admin
+          .from('user_profiles')
+          .select('id, role, is_active')
+          .eq('org_id', me.org_id)
+          .neq('id', caller.id);
+        const otherSupers = (others ?? []).filter((p) => p.role === 'super_admin' && p.is_active).length;
+        if ((others ?? []).length === 0) {
+          await deleteOrganization(me.org_id);
+          return json({ ok: true, organization_deleted: true });
+        }
+        if (otherSupers === 0) {
+          return fail('You are the only super admin. Make someone else a super admin first, or delete the whole organization.', 409, 'LAST_SUPER');
+        }
+      }
+      const { error } = await admin.auth.admin.deleteUser(caller.id);
+      return error ? fail(error.message) : json({ ok: true });
+    }
+
     if (!me?.is_active || me.role !== 'super_admin') return fail('Only a super admin can do this.', 403);
     const orgId: string = me.org_id;
+
+    // ---------------- super admin: delete the whole organization ----------------
+    if (action === 'delete_org') {
+      const { data: org } = await admin.from('organizations').select('name').eq('id', orgId).single();
+      const typed = cleanText(payload.confirm_name, 120).toLowerCase();
+      if (!org || typed !== String(org.name).trim().toLowerCase())
+        return fail('Type the organization name exactly to confirm.', 400);
+      await deleteOrganization(orgId);
+      return json({ ok: true });
+    }
 
     // Every person this function touches must belong to the caller's company.
     const targetInOrg = async (id: unknown) => {

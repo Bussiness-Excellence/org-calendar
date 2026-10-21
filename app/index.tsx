@@ -19,7 +19,8 @@ import { LanguageSwitch } from '@/components/PreferenceControls';
 import { useColors } from '@/hooks/useColors';
 import { getRememberedEmail, rememberEmail, useCalendar } from '@/lib/calendar-context';
 import { pickLogo, type PickedLogo } from '@/lib/logo-picker';
-import { APP_NAME, FREE_USER_LIMIT, isConfigured } from '@/lib/supabase-config';
+import { APP_NAME, FREE_USER_LIMIT, isConfigured, PRIVACY_URL } from '@/lib/supabase-config';
+import * as Linking from 'expo-linking';
 import { arrowBack, t } from '@/lib/i18n';
 
 type Mode = 'sign-in' | 'register';
@@ -395,6 +396,12 @@ function RegisterScreen({ onSignIn }: { onSignIn: () => void }) {
         </Text>
       </View>
       <PrimaryButton testID="register-submit" label={t('Create organization')} busy={busy} onPress={submit} />
+      <Text style={[styles.footnote, { color: colors.mutedForeground }]}>
+        {t('By creating an organization you agree to the')}{' '}
+        <Text onPress={() => void Linking.openURL(PRIVACY_URL)} style={{ color: colors.primary }} accessibilityRole="link">
+          {t('Privacy policy')}
+        </Text>
+      </Text>
     </AuthShell>
   );
 }

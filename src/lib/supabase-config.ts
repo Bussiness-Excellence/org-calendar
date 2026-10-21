@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 // Build-time settings. Set these as environment variables when building
 // (EXPO_PUBLIC_* values are baked into the app at build time).
 //
@@ -17,8 +19,18 @@ export const UPGRADE_URL =
   process.env.EXPO_PUBLIC_UPGRADE_URL ||
   'mailto:business.excellence.eipico@gmail.com?subject=Upgrade%20to%20Pro';
 
-/** Shown in the app; translated where it is displayed. */
-export const PRO_PRICE = '$50';
+/** Pro: US$ per active person per year. */
+export const PRO_PRICE_PER_PERSON = 2.5;
+export const PRIVACY_URL = 'https://bussiness-excellence.github.io/org-calendar/privacy.html';
+export const formatUsd = (amount: number) => `$${amount.toFixed(2).replace(/\.00$/, '')}`;
+export const PRO_PRICE = formatUsd(PRO_PRICE_PER_PERSON);
+/** Yearly Pro price for a number of active people. */
+export const proYearlyTotal = (people: number) => formatUsd(Math.max(1, people) * PRO_PRICE_PER_PERSON);
+/**
+ * Google Play and the App Store do not allow pointing to outside payment for
+ * digital upgrades, so prices and the "Request Pro" button appear on the web only.
+ */
+export const SELL_IN_APP = Platform.OS === 'web';
 export const FREE_USER_LIMIT = 10;
 
 export const isConfigured = !!SUPABASE_URL && !!SUPABASE_ANON_KEY;

@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import 'react-native-url-polyfill/auto';
-import { SUPABASE_ANON_KEY, SUPABASE_URL } from './supabase-config';
+import { PRO_PRICE, SELL_IN_APP, SUPABASE_ANON_KEY, SUPABASE_URL } from './supabase-config';
 import { t } from '@/lib/i18n';
 
 export const supabase = createClient(
@@ -43,7 +43,12 @@ export async function callAdmin<T = { ok: true }>(
         // fall through to the generic message
       }
       if (body.code === 'USER_LIMIT') {
-        throw new AdminError(t('The free plan includes up to {n} people. Upgrade to Pro ($50/year) to add more.', { n: 10 }), body.code);
+        throw new AdminError(
+          SELL_IN_APP
+            ? t('The free plan includes up to {n} people. Upgrade to Pro ({price} per person per year) to add more.', { n: 10, price: PRO_PRICE })
+            : t('The free plan includes up to {n} people.', { n: 10 }),
+          body.code,
+        );
       }
       // Server messages are English; show them in the reader's language when we know them.
       throw new AdminError(body.error ? t(body.error) : t('The request could not be completed.'), body.code);
