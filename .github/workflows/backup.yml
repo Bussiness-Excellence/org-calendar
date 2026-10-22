@@ -45,7 +45,8 @@ jobs:
           set -o pipefail
           name="org-calendar-$(date -u +%Y-%m-%d)"
           /usr/lib/postgresql/17/bin/pg_dump "$DB_URL" --format=custom --no-owner --no-privileges \
-            --schema=public --schema=auth --schema=storage --file=backup.dump
+            --schema=public --schema=auth --schema=storage --file=backup.dump 2> dump.err || {
+            echo "::error title=pg_dump failed::$(sed -E 's#postgres(ql)?://[^ ]*#<db-url>#g' dump.err | head -5 | tr '\n' ' ')"; exit 1; }
           ls -la backup.dump
           openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:PASS -in backup.dump -out "$name.dump.enc"
           rm backup.dump
