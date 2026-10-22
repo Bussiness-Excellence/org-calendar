@@ -12,11 +12,13 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { router, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandMark } from '@/components/BrandMark';
+import { DesktopCalendar } from '@/components/DesktopCalendar';
 import { NotificationsBell } from '@/components/NotificationsBell';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useColors } from '@/hooks/useColors';
@@ -318,9 +320,81 @@ export default function CalendarScreen() {
     canManageGroup(profile, event.group_id);
 
   const topInset = Platform.OS === 'web' ? 16 : insets.top;
+  const { width: windowWidth } = useWindowDimensions();
+  // Computer screens get the full-width layout; phones and tablets keep the stacked one.
+  const wide = Platform.OS === 'web' && windowWidth >= 1100;
+  const desktopBanner = (
+    <>
+      {notice ? (
+        <Pressable onPress={() => setNotice('')} style={[styles.notice, { backgroundColor: colors.successSurface, borderColor: colors.success }]} accessibilityRole="alert">
+          <Feather name="check-circle" size={16} color={colors.success} />
+          <Text style={[styles.noticeText, { color: colors.success }]}>{notice}</Text>
+          <Feather name="x" size={15} color={colors.success} />
+        </Pressable>
+      ) : null}
+      {dataError ? (
+        <View style={[styles.errorBanner, { backgroundColor: colors.warningSurface }]}>
+          <Text style={[styles.noticeText, { color: colors.warning }]}>{t('Calendar data could not be loaded.')}</Text>
+          <Pressable onPress={() => void refresh()} accessibilityRole="button">
+            <Text style={[styles.retryText, { color: colors.primary }]}>{t('Retry')}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      {!dataLoading && !dataError && elevated && groups.length === 0 ? (
+        <View style={[styles.errorBanner, { backgroundColor: colors.accent }]}>
+          <Feather name="flag" size={15} color={colors.primary} />
+          <Text style={[styles.noticeText, { color: colors.foreground }]}>{t('Start by creating your teams, then add the people who work in them.')}</Text>
+          <Pressable onPress={() => router.push('/admin' as Href)} accessibilityRole="button">
+            <Text style={[styles.retryText, { color: colors.primary }]}>{t('Set up teams')}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      {!dataLoading && !elevated && !profile?.group_id ? (
+        <View style={[styles.errorBanner, { backgroundColor: colors.warningSurface }]}>
+          <Feather name="info" size={15} color={colors.warning} />
+          <Text style={[styles.noticeText, { color: colors.warning }]}>{t('You are not in a team yet, so you can see events but not add them. Ask your calendar admin to add you to a team.')}</Text>
+        </View>
+      ) : null}
+    </>
+  );
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
+      {wide ? (
+        <DesktopCalendar
+          org={org}
+          profile={profile}
+          showAdmin={elevated || !!org?.is_platform_admin}
+          groups={elevated ? groups : groups.filter((group) => group.id === profile?.group_id)}
+          events={visibleEvents}
+          groupFilter={groupFilter}
+          setGroupFilter={setGroupFilter}
+          cursor={cursor}
+          setCursor={setCursor}
+          selectedDate={selectedDate}
+          setSelectedDate={setSelectedDate}
+          reviewQueue={reviewQueue}
+          approvalsOn={approvalsOn}
+          busy={busy}
+          banner={desktopBanner}
+          onNewEvent={openNewEvent}
+          onOpenEvent={openEvent}
+          onApprove={(event) => void approve(event)}
+          onSendBack={openReject}
+          onBellOpen={(eventId, date) => {
+            const event = events.find((e) => e.id === eventId);
+            const day = parseLocalDate(event?.date ?? date ?? '');
+            if (day) {
+              setCursor(new Date(day.getFullYear(), day.getMonth(), 1));
+              setSelectedDate(localDateString(day));
+            }
+            if (event) openEvent(event);
+          }}
+          eventColor={eventColor}
+          groupName={groupName}
+          personName={personName}
+        />
+      ) : (
       <ScrollView
         style={styles.page}
         contentContainerStyle={[
@@ -786,6 +860,7 @@ export default function CalendarScreen() {
           <EmptyDay selectedDate={selectedDate} onAdd={openNewEvent} />
         )}
       </ScrollView>
+      )}
 
       <Modal
         visible={eventVisible}
