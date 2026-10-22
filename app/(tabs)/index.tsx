@@ -12,6 +12,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { router, type Href } from 'expo-router';
@@ -318,6 +319,456 @@ export default function CalendarScreen() {
     canManageGroup(profile, event.group_id);
 
   const topInset = Platform.OS === 'web' ? 16 : insets.top;
+  const { width: windowWidth } = useWindowDimensions();
+  const wide = windowWidth >= 1000;
+
+
+  const firstName = (profile?.full_name ?? '').trim().split(/\s+/)[0] ?? '';
+  const todayCount = visibleEvents.filter((event) => event.date === today).length;
+  const myOpen = events.filter((event) => event.assigned_to === userId && event.date >= today).length;
+  const myPending = events.filter((event) => event.created_by === userId && event.status === 'pending').length;
+  const stats = [
+    { key: 'today', icon: 'sun' as const, value: todayCount, label: t('Today'), tint: '#F59E0B' },
+    { key: 'month', icon: 'calendar' as const, value: monthEvents.length, label: t('This month'), tint: '#4E9BDC' },
+    { key: 'mine', icon: 'check-square' as const, value: myOpen, label: t('My tasks'), tint: '#14B8A6' },
+    { key: 'review', icon: 'clock' as const, value: reviewQueue.length || myPending, label: reviewQueue.length ? t('To review') : t('Waiting approval'), tint: '#F472B6' },
+  ];
+  const hero = (
+    <View testID="calendar-hero" style={[styles.hero, wide && styles.heroWide, { backgroundColor: colors.scheme === 'dark' ? '#0F2A47' : '#0B4D89' }]}>
+      <View style={styles.heroText}>
+        <Text style={styles.heroHello}>{firstName ? t('Hello, {name}', { name: firstName }) : t('Hello')}</Text>
+        <Text style={styles.heroDate}>{dateTitle(today)}</Text>
+      </View>
+      <View style={[styles.heroStats, wide && styles.heroStatsWide]}>
+        {stats.map((stat) => (
+          <View key={stat.key} style={styles.heroStat}>
+            <View style={[styles.heroStatIcon, { backgroundColor: `${stat.tint}33` }]}>
+              <Feather name={stat.icon} size={15} color={stat.tint} />
+            </View>
+            <View style={{ minWidth: 0, flexShrink: 1 }}>
+              <Text style={styles.heroStatValue}>{stat.value}</Text>
+              <Text numberOfLines={1} style={styles.heroStatLabel}>{stat.label}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+  const reviewBlock = (
+    <>
+    {reviewQueue.length > 0 ? (
+      <View
+        style={[
+          styles.reviewPanel,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+      >
+        <View style={styles.reviewHeading}>
+          <View style={[styles.reviewIcon, { backgroundColor: colors.warningSurface }]}>
+            <Feather name="clock" size={16} color={colors.warning} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+              {t('Needs your review')}
+            </Text>
+            <Text style={[styles.sectionMeta, { color: colors.mutedForeground }]}>
+              {tn(reviewQueue.length, '{n} event awaiting approval', '{n} events awaiting approval')}
+            </Text>
+          </View>
+          <View style={[styles.countBadge, { backgroundColor: colors.warningSurface }]}>
+            <Text style={[styles.countText, { color: colors.warning }]}>
+              {reviewQueue.length}
+            </Text>
+          </View>
+        </View>
+        {reviewQueue.slice(0, 3).map((event) => (
+          <View
+            key={event.id}
+            style={[styles.reviewRow, { borderTopColor: colors.border }]}
+          >
+            <Pressable
+              style={styles.reviewEvent}
+              onPress={() => openEvent(event)}
+              accessibilityRole="button"
+            >
+              <View style={[styles.eventDot, { backgroundColor: eventColor(event) }]} />
+              <View style={{ flex: 1 }}>
+                <Text
+                  numberOfLines={1}
+                  style={[styles.eventTitle, { color: colors.foreground }]}
+                >
+                  {event.title}
+                </Text>
+                <Text style={[styles.eventMeta, { color: colors.mutedForeground }]}>
+                  {shortDateTitle(event.date)} · {groupName(event.group_id)}
+                </Text>
+              </View>
+            </Pressable>
+            <View style={styles.reviewActions}>
+              <Pressable
+                onPress={() => void approve(event)}
+                disabled={busy}
+                style={[styles.approveButton, { backgroundColor: colors.primary }]}
+                accessibilityRole="button"
+                accessibilityLabel={t('Approve {title}', { title: event.title })}
+              >
+                <Feather name="check" size={16} color={colors.primaryForeground} />
+              </Pressable>
+              {approvalsOn ? (
+                <Pressable
+                  onPress={() => openReject(event)}
+                  style={[styles.returnButton, { borderColor: colors.border }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('Send back {title}', { title: event.title })}
+                >
+                  <Feather name="corner-up-left" size={15} color={colors.secondaryForeground} />
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+        ))}
+        {reviewQueue.length > 3 ? (
+          <Text style={[styles.moreReviews, { color: colors.mutedForeground }]}>
+            {t('And {n} more waiting', { n: reviewQueue.length - 3 })}
+          </Text>
+        ) : null}
+      </View>
+    ) : null}
+    </>
+  );
+  const setupBlock = (
+    <>
+    {!dataLoading && !dataError && elevated && groups.length === 0 ? (
+      <View style={[styles.setupCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.reviewIcon, { backgroundColor: colors.accent }]}>
+          <Feather name="flag" size={16} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            {t('Welcome to {name}', { name: org?.name ?? '' })}
+          </Text>
+          <Text style={[styles.sectionMeta, { color: colors.mutedForeground }]}>
+            {t('Start by creating your teams, then add the people who work in them.')}
+          </Text>
+          <Pressable
+            testID="open-admin-setup"
+            onPress={() => router.push('/admin' as Href)}
+            style={[styles.setupButton, { backgroundColor: colors.primary }]}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>{t('Set up teams')}</Text>
+            <Feather name={arrowForward()} size={15} color={colors.primaryForeground} />
+          </Pressable>
+        </View>
+      </View>
+    ) : null}
+    </>
+  );
+  const warnBlock = (
+    <>
+    {!dataLoading && !elevated && !profile?.group_id ? (
+      <View style={[styles.errorBanner, { backgroundColor: colors.warningSurface }]}>
+        <Feather name="info" size={15} color={colors.warning} />
+        <Text style={[styles.noticeText, { color: colors.warning }]}>
+          {t('You are not in a team yet, so you can see events but not add them. Ask your calendar admin to add you to a team.')}
+        </Text>
+      </View>
+    ) : null}
+    </>
+  );
+  const calendarBlock = (
+    <>
+      <View style={styles.monthHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.monthTitle, { color: colors.foreground }]}>
+            {monthTitle(cursor)}
+          </Text>
+          <Text style={[styles.monthSub, { color: colors.mutedForeground }]}>
+            {tn(visibleEvents.length, '{n} event in view', '{n} events in view')}
+          </Text>
+        </View>
+        <Pressable
+          onPress={goToToday}
+          style={[styles.todayButton, { borderColor: colors.border }]}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.todayText, { color: colors.primary }]}>{t('Today')}</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => changeMonth(-1)}
+          style={[styles.arrowButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+          accessibilityRole="button"
+          accessibilityLabel={t('Previous month')}
+        >
+          <Feather name={backIcon()} size={19} color={colors.secondaryForeground} />
+        </Pressable>
+        <Pressable
+          onPress={() => changeMonth(1)}
+          style={[styles.arrowButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+          accessibilityRole="button"
+          accessibilityLabel={t('Next month')}
+        >
+          <Feather name={forwardIcon()} size={19} color={colors.secondaryForeground} />
+        </Pressable>
+      </View>
+
+      <View
+        style={[
+          styles.viewSwitcher,
+          { backgroundColor: colors.muted, borderColor: colors.border },
+        ]}
+      >
+        {(['month', 'schedule'] as const).map((mode) => (
+          <Pressable
+            key={mode}
+            testID={`view-${mode}`}
+            onPress={() => setView(mode)}
+            style={[
+              styles.viewOption,
+              view === mode && [
+                styles.viewOptionActive,
+                { backgroundColor: colors.card },
+              ],
+            ]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: view === mode }}
+          >
+            <Feather
+              name={mode === 'month' ? 'calendar' : 'list'}
+              size={15}
+              color={view === mode ? colors.primary : colors.mutedForeground}
+            />
+            <Text
+              style={[
+                styles.viewOptionText,
+                { color: view === mode ? colors.foreground : colors.secondaryForeground },
+              ]}
+            >
+              {mode === 'month' ? t('Month') : t('Schedule')}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {elevated ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.groupFilters}
+        >
+          <FilterChip
+            label={t('All teams')}
+            selected={groupFilter === null}
+            onPress={() => setGroupFilter(null)}
+          />
+          {groups.map((group) => (
+            <FilterChip
+              key={group.id}
+              label={group.name}
+              color={group.color ?? undefined}
+              selected={groupFilter === group.id}
+              onPress={() => setGroupFilter(group.id)}
+            />
+          ))}
+        </ScrollView>
+      ) : profile?.group_id ? (
+        <View style={styles.groupLabel}>
+          <View style={[styles.eventDot, { backgroundColor: groupColor(profile.group_id) }]} />
+          <Text style={[styles.groupLabelText, { color: colors.secondaryForeground }]}>
+            {groupName(profile.group_id)}
+          </Text>
+        </View>
+      ) : null}
+
+      {view === 'month' ? (
+        <View
+          style={[
+            styles.calendarCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
+          <View style={styles.weekdayRow}>
+            {weekdayLabels().map((day, index) => (
+              <Text
+                key={`${day}-${index}`}
+                style={[styles.weekday, { color: colors.mutedForeground }]}
+              >
+                {day}
+              </Text>
+            ))}
+          </View>
+          <View style={[styles.dayGrid, { borderTopColor: colors.border, borderLeftColor: colors.border }]}>
+            {dates.map((date) => {
+              const dateKey = localDateString(date);
+              const inMonth = date.getMonth() === cursor.getMonth();
+              const dayEvents = visibleEvents.filter((event) => event.date === dateKey);
+              const selected = dateKey === selectedDate;
+              const isToday = dateKey === today;
+              return (
+                <Pressable
+                  key={dateKey}
+                  testID={`calendar-day-${dateKey}`}
+                  onPress={() => selectDay(date)}
+                  style={[
+                    styles.dayCell,
+                    wide && styles.dayCellWide,
+                    {
+                      borderRightColor: colors.border,
+                      borderBottomColor: colors.border,
+                      backgroundColor: selected ? colors.accent : isToday ? `${colors.primary}0D` : colors.card,
+                    },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${dateTitle(dateKey)}${dayEvents.length ? `, ${tn(dayEvents.length, '{n} event', '{n} events')}` : ''}`}
+                  accessibilityState={{ selected }}
+                >
+                  <View
+                    style={[
+                      styles.dayNumber,
+                      wide && styles.dayNumberWide,
+                      selected && { backgroundColor: colors.primary },
+                      isToday && !selected && { borderColor: colors.primary, borderWidth: 1 },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dayNumberText,
+                        {
+                          color: !inMonth
+                            ? colors.mutedForeground
+                            : selected
+                              ? colors.primaryForeground
+                              : colors.foreground,
+                        },
+                      ]}
+                    >
+                      {date.getDate()}
+                    </Text>
+                  </View>
+                  {wide ? (
+                    <View style={styles.dayChips}>
+                      {dayEvents.slice(0, 3).map((event) => (
+                        <View
+                          key={event.id}
+                          style={[styles.dayChip, { backgroundColor: `${eventColor(event)}${colors.scheme === 'dark' ? '33' : '1F'}` }]}
+                        >
+                          <View style={[styles.dayChipBar, { backgroundColor: eventColor(event) }]} />
+                          <Text numberOfLines={1} style={[styles.dayChipText, { color: colors.foreground }]}>
+                            {event.time_start ? `${event.time_start.slice(0, 5)} ` : ''}{event.title}
+                          </Text>
+                        </View>
+                      ))}
+                      {dayEvents.length > 3 ? (
+                        <Text style={[styles.dayChipMore, { color: colors.mutedForeground }]}>
+                          {t('+{n} more', { n: dayEvents.length - 3 })}
+                        </Text>
+                      ) : null}
+                    </View>
+                  ) : (
+                  <View style={styles.dayDots}>
+                    {dayEvents.slice(0, 3).map((event) => (
+                      <View
+                        key={event.id}
+                        style={[styles.dayDot, { backgroundColor: eventColor(event) }]}
+                      />
+                    ))}
+                    {dayEvents.length > 3 ? (
+                      <Text style={[styles.dayMore, { color: colors.mutedForeground }]}>
+                        +{dayEvents.length - 3}
+                      </Text>
+                    ) : null}
+                  </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
+    </>
+  );
+  const agendaBlock = (
+    <>
+      <View style={styles.agendaHeader}>
+        <View>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            {view === 'month' ? dateTitle(selectedDate) : t('This month')}
+          </Text>
+          <Text style={[styles.sectionMeta, { color: colors.mutedForeground }]}>
+            {view === 'month'
+              ? tn(selectedEvents.length, '{n} event', '{n} events')
+              : tn(monthEvents.length, '{n} event', '{n} events')}
+          </Text>
+        </View>
+        {view === 'month' ? (
+          <Pressable
+            onPress={() => {
+              setView('schedule');
+              void Haptics.selectionAsync();
+            }}
+            style={styles.seeSchedule}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.seeScheduleText, { color: colors.primary }]}>
+              {t('Full schedule')}
+            </Text>
+            <Feather name={arrowForward()} size={15} color={colors.primary} />
+          </Pressable>
+        ) : null}
+      </View>
+
+      {dataLoading && visibleEvents.length === 0 ? (
+        <View style={[styles.loadingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+            {t('Loading your team calendar…')}
+          </Text>
+        </View>
+      ) : view === 'month' ? (
+        selectedEvents.length ? (
+          <View style={styles.eventList}>
+            {selectedEvents.map((event) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                groupName={groupName(event.group_id)}
+                assignedName={personName(event)}
+                groupColor={groupColor(event.group_id)}
+                onPress={() => openEvent(event)}
+              />
+            ))}
+          </View>
+        ) : (
+          <EmptyDay selectedDate={selectedDate} onAdd={openNewEvent} />
+        )
+      ) : monthEvents.length ? (
+        <View style={styles.eventList}>
+          {monthEvents.map((event, index) => {
+            const previous = monthEvents[index - 1];
+            const showDay = !previous || previous.date !== event.date;
+            return (
+              <View key={event.id}>
+                {showDay ? (
+                  <Text style={[styles.scheduleDate, { color: colors.mutedForeground }]}>
+                    {dateTitle(event.date)}
+                  </Text>
+                ) : null}
+                <EventCard
+                  event={event}
+                  groupName={groupName(event.group_id)}
+                  assignedName={personName(event)}
+                  groupColor={groupColor(event.group_id)}
+                  onPress={() => openEvent(event)}
+                />
+              </View>
+            );
+          })}
+        </View>
+      ) : (
+        <EmptyDay selectedDate={selectedDate} onAdd={openNewEvent} />
+      )}
+    </>
+  );
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
@@ -325,6 +776,7 @@ export default function CalendarScreen() {
         style={styles.page}
         contentContainerStyle={[
           styles.scrollContent,
+          wide && styles.scrollContentWide,
           { paddingTop: topInset + 10, paddingBottom: 100 },
         ]}
         refreshControl={
@@ -383,6 +835,8 @@ export default function CalendarScreen() {
           </View>
         </View>
 
+        {hero}
+
         {notice ? (
           <Pressable
             onPress={() => setNotice('')}
@@ -409,381 +863,27 @@ export default function CalendarScreen() {
           </View>
         ) : null}
 
-        {reviewQueue.length > 0 ? (
-          <View
-            style={[
-              styles.reviewPanel,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
-            <View style={styles.reviewHeading}>
-              <View style={[styles.reviewIcon, { backgroundColor: colors.warningSurface }]}>
-                <Feather name="clock" size={16} color={colors.warning} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-                  {t('Needs your review')}
-                </Text>
-                <Text style={[styles.sectionMeta, { color: colors.mutedForeground }]}>
-                  {tn(reviewQueue.length, '{n} event awaiting approval', '{n} events awaiting approval')}
-                </Text>
-              </View>
-              <View style={[styles.countBadge, { backgroundColor: colors.warningSurface }]}>
-                <Text style={[styles.countText, { color: colors.warning }]}>
-                  {reviewQueue.length}
-                </Text>
-              </View>
+        {wide ? (
+          <View style={styles.columns}>
+            <View style={styles.mainColumn}>
+              {calendarBlock}
+              {view === 'schedule' ? agendaBlock : null}
             </View>
-            {reviewQueue.slice(0, 3).map((event) => (
-              <View
-                key={event.id}
-                style={[styles.reviewRow, { borderTopColor: colors.border }]}
-              >
-                <Pressable
-                  style={styles.reviewEvent}
-                  onPress={() => openEvent(event)}
-                  accessibilityRole="button"
-                >
-                  <View style={[styles.eventDot, { backgroundColor: eventColor(event) }]} />
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      numberOfLines={1}
-                      style={[styles.eventTitle, { color: colors.foreground }]}
-                    >
-                      {event.title}
-                    </Text>
-                    <Text style={[styles.eventMeta, { color: colors.mutedForeground }]}>
-                      {shortDateTitle(event.date)} · {groupName(event.group_id)}
-                    </Text>
-                  </View>
-                </Pressable>
-                <View style={styles.reviewActions}>
-                  <Pressable
-                    onPress={() => void approve(event)}
-                    disabled={busy}
-                    style={[styles.approveButton, { backgroundColor: colors.primary }]}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('Approve {title}', { title: event.title })}
-                  >
-                    <Feather name="check" size={16} color={colors.primaryForeground} />
-                  </Pressable>
-                  {approvalsOn ? (
-                    <Pressable
-                      onPress={() => openReject(event)}
-                      style={[styles.returnButton, { borderColor: colors.border }]}
-                      accessibilityRole="button"
-                      accessibilityLabel={t('Send back {title}', { title: event.title })}
-                    >
-                      <Feather name="corner-up-left" size={15} color={colors.secondaryForeground} />
-                    </Pressable>
-                  ) : null}
-                </View>
-              </View>
-            ))}
-            {reviewQueue.length > 3 ? (
-              <Text style={[styles.moreReviews, { color: colors.mutedForeground }]}>
-                {t('And {n} more waiting', { n: reviewQueue.length - 3 })}
-              </Text>
-            ) : null}
-          </View>
-        ) : null}
-
-        {!dataLoading && !dataError && elevated && groups.length === 0 ? (
-          <View style={[styles.setupCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={[styles.reviewIcon, { backgroundColor: colors.accent }]}>
-              <Feather name="flag" size={16} color={colors.primary} />
+            <View style={styles.sideColumn}>
+              {reviewBlock}
+              {setupBlock}
+              {warnBlock}
+              {view === 'month' ? agendaBlock : null}
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-                {t('Welcome to {name}', { name: org?.name ?? '' })}
-              </Text>
-              <Text style={[styles.sectionMeta, { color: colors.mutedForeground }]}>
-                {t('Start by creating your teams, then add the people who work in them.')}
-              </Text>
-              <Pressable
-                testID="open-admin-setup"
-                onPress={() => router.push('/admin' as Href)}
-                style={[styles.setupButton, { backgroundColor: colors.primary }]}
-                accessibilityRole="button"
-              >
-                <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>{t('Set up teams')}</Text>
-                <Feather name={arrowForward()} size={15} color={colors.primaryForeground} />
-              </Pressable>
-            </View>
-          </View>
-        ) : null}
-
-        {!dataLoading && !elevated && !profile?.group_id ? (
-          <View style={[styles.errorBanner, { backgroundColor: colors.warningSurface }]}>
-            <Feather name="info" size={15} color={colors.warning} />
-            <Text style={[styles.noticeText, { color: colors.warning }]}>
-              {t('You are not in a team yet, so you can see events but not add them. Ask your calendar admin to add you to a team.')}
-            </Text>
-          </View>
-        ) : null}
-
-        <View style={styles.monthHeader}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.monthTitle, { color: colors.foreground }]}>
-              {monthTitle(cursor)}
-            </Text>
-            <Text style={[styles.monthSub, { color: colors.mutedForeground }]}>
-              {tn(visibleEvents.length, '{n} event in view', '{n} events in view')}
-            </Text>
-          </View>
-          <Pressable
-            onPress={goToToday}
-            style={[styles.todayButton, { borderColor: colors.border }]}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.todayText, { color: colors.primary }]}>{t('Today')}</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => changeMonth(-1)}
-            style={[styles.arrowButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-            accessibilityRole="button"
-            accessibilityLabel={t('Previous month')}
-          >
-            <Feather name={backIcon()} size={19} color={colors.secondaryForeground} />
-          </Pressable>
-          <Pressable
-            onPress={() => changeMonth(1)}
-            style={[styles.arrowButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-            accessibilityRole="button"
-            accessibilityLabel={t('Next month')}
-          >
-            <Feather name={forwardIcon()} size={19} color={colors.secondaryForeground} />
-          </Pressable>
-        </View>
-
-        <View
-          style={[
-            styles.viewSwitcher,
-            { backgroundColor: colors.muted, borderColor: colors.border },
-          ]}
-        >
-          {(['month', 'schedule'] as const).map((mode) => (
-            <Pressable
-              key={mode}
-              testID={`view-${mode}`}
-              onPress={() => setView(mode)}
-              style={[
-                styles.viewOption,
-                view === mode && [
-                  styles.viewOptionActive,
-                  { backgroundColor: colors.card },
-                ],
-              ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: view === mode }}
-            >
-              <Feather
-                name={mode === 'month' ? 'calendar' : 'list'}
-                size={15}
-                color={view === mode ? colors.primary : colors.mutedForeground}
-              />
-              <Text
-                style={[
-                  styles.viewOptionText,
-                  { color: view === mode ? colors.foreground : colors.secondaryForeground },
-                ]}
-              >
-                {mode === 'month' ? t('Month') : t('Schedule')}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {elevated ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.groupFilters}
-          >
-            <FilterChip
-              label={t('All teams')}
-              selected={groupFilter === null}
-              onPress={() => setGroupFilter(null)}
-            />
-            {groups.map((group) => (
-              <FilterChip
-                key={group.id}
-                label={group.name}
-                color={group.color ?? undefined}
-                selected={groupFilter === group.id}
-                onPress={() => setGroupFilter(group.id)}
-              />
-            ))}
-          </ScrollView>
-        ) : profile?.group_id ? (
-          <View style={styles.groupLabel}>
-            <View style={[styles.eventDot, { backgroundColor: groupColor(profile.group_id) }]} />
-            <Text style={[styles.groupLabelText, { color: colors.secondaryForeground }]}>
-              {groupName(profile.group_id)}
-            </Text>
-          </View>
-        ) : null}
-
-        {view === 'month' ? (
-          <View
-            style={[
-              styles.calendarCard,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
-            <View style={styles.weekdayRow}>
-              {weekdayLabels().map((day, index) => (
-                <Text
-                  key={`${day}-${index}`}
-                  style={[styles.weekday, { color: colors.mutedForeground }]}
-                >
-                  {day}
-                </Text>
-              ))}
-            </View>
-            <View style={[styles.dayGrid, { borderTopColor: colors.border, borderLeftColor: colors.border }]}>
-              {dates.map((date) => {
-                const dateKey = localDateString(date);
-                const inMonth = date.getMonth() === cursor.getMonth();
-                const dayEvents = visibleEvents.filter((event) => event.date === dateKey);
-                const selected = dateKey === selectedDate;
-                const isToday = dateKey === today;
-                return (
-                  <Pressable
-                    key={dateKey}
-                    testID={`calendar-day-${dateKey}`}
-                    onPress={() => selectDay(date)}
-                    style={[
-                      styles.dayCell,
-                      {
-                        borderRightColor: colors.border,
-                        borderBottomColor: colors.border,
-                        backgroundColor: selected ? colors.accent : colors.card,
-                      },
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${dateTitle(dateKey)}${dayEvents.length ? `, ${tn(dayEvents.length, '{n} event', '{n} events')}` : ''}`}
-                    accessibilityState={{ selected }}
-                  >
-                    <View
-                      style={[
-                        styles.dayNumber,
-                        selected && { backgroundColor: colors.primary },
-                        isToday && !selected && { borderColor: colors.primary, borderWidth: 1 },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.dayNumberText,
-                          {
-                            color: !inMonth
-                              ? colors.mutedForeground
-                              : selected
-                                ? colors.primaryForeground
-                                : colors.foreground,
-                          },
-                        ]}
-                      >
-                        {date.getDate()}
-                      </Text>
-                    </View>
-                    <View style={styles.dayDots}>
-                      {dayEvents.slice(0, 3).map((event) => (
-                        <View
-                          key={event.id}
-                          style={[styles.dayDot, { backgroundColor: eventColor(event) }]}
-                        />
-                      ))}
-                      {dayEvents.length > 3 ? (
-                        <Text style={[styles.dayMore, { color: colors.mutedForeground }]}>
-                          +{dayEvents.length - 3}
-                        </Text>
-                      ) : null}
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        ) : null}
-
-        <View style={styles.agendaHeader}>
-          <View>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              {view === 'month' ? dateTitle(selectedDate) : t('This month')}
-            </Text>
-            <Text style={[styles.sectionMeta, { color: colors.mutedForeground }]}>
-              {view === 'month'
-                ? tn(selectedEvents.length, '{n} event', '{n} events')
-                : tn(monthEvents.length, '{n} event', '{n} events')}
-            </Text>
-          </View>
-          {view === 'month' ? (
-            <Pressable
-              onPress={() => {
-                setView('schedule');
-                void Haptics.selectionAsync();
-              }}
-              style={styles.seeSchedule}
-              accessibilityRole="button"
-            >
-              <Text style={[styles.seeScheduleText, { color: colors.primary }]}>
-                {t('Full schedule')}
-              </Text>
-              <Feather name={arrowForward()} size={15} color={colors.primary} />
-            </Pressable>
-          ) : null}
-        </View>
-
-        {dataLoading && visibleEvents.length === 0 ? (
-          <View style={[styles.loadingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <ActivityIndicator color={colors.primary} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              {t('Loading your team calendar…')}
-            </Text>
-          </View>
-        ) : view === 'month' ? (
-          selectedEvents.length ? (
-            <View style={styles.eventList}>
-              {selectedEvents.map((event) => (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  groupName={groupName(event.group_id)}
-                  assignedName={personName(event)}
-                  groupColor={groupColor(event.group_id)}
-                  onPress={() => openEvent(event)}
-                />
-              ))}
-            </View>
-          ) : (
-            <EmptyDay selectedDate={selectedDate} onAdd={openNewEvent} />
-          )
-        ) : monthEvents.length ? (
-          <View style={styles.eventList}>
-            {monthEvents.map((event, index) => {
-              const previous = monthEvents[index - 1];
-              const showDay = !previous || previous.date !== event.date;
-              return (
-                <View key={event.id}>
-                  {showDay ? (
-                    <Text style={[styles.scheduleDate, { color: colors.mutedForeground }]}>
-                      {dateTitle(event.date)}
-                    </Text>
-                  ) : null}
-                  <EventCard
-                    event={event}
-                    groupName={groupName(event.group_id)}
-                    assignedName={personName(event)}
-                    groupColor={groupColor(event.group_id)}
-                    onPress={() => openEvent(event)}
-                  />
-                </View>
-              );
-            })}
           </View>
         ) : (
-          <EmptyDay selectedDate={selectedDate} onAdd={openNewEvent} />
+          <>
+            {reviewBlock}
+            {setupBlock}
+            {warnBlock}
+            {calendarBlock}
+            {agendaBlock}
+          </>
         )}
       </ScrollView>
 
@@ -1532,6 +1632,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 16,
   },
+  scrollContentWide: { maxWidth: 1240, paddingHorizontal: 32, gap: 20 },
+  columns: { flexDirection: 'row', alignItems: 'flex-start', gap: 24 },
+  mainColumn: { flex: 1, minWidth: 0, gap: 16 },
+  sideColumn: { width: 380, gap: 16 },
+  hero: { borderRadius: 20, padding: 18, gap: 16 },
+  heroWide: { flexDirection: 'row', alignItems: 'center', paddingVertical: 22, paddingHorizontal: 26 },
+  heroText: { flex: 1, minWidth: 0, gap: 4 },
+  heroHello: { color: '#FFFFFF', fontSize: 22, fontFamily: 'Inter_700Bold', letterSpacing: -0.4 },
+  heroDate: { color: '#C9DCF0', fontSize: 13, fontFamily: 'Inter_500Medium' },
+  heroStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  heroStatsWide: { flexWrap: 'nowrap', gap: 12 },
+  heroStat: { flexGrow: 1, flexBasis: 130, minHeight: 58, borderRadius: 14, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.09)' },
+  heroStatIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  heroStatValue: { color: '#FFFFFF', fontSize: 20, fontFamily: 'Inter_700Bold' },
+  heroStatLabel: { color: '#C9DCF0', fontSize: 11, fontFamily: 'Inter_500Medium' },
+  dayCellWide: { height: 112, alignItems: 'stretch', paddingTop: 6, paddingHorizontal: 6 },
+  dayNumberWide: { alignSelf: 'flex-start' },
+  dayChips: { marginTop: 4, gap: 3 },
+  dayChip: { height: 20, borderRadius: 5, flexDirection: 'row', alignItems: 'center', overflow: 'hidden', gap: 5, paddingEnd: 5 },
+  dayChipBar: { width: 3, alignSelf: 'stretch' },
+  dayChipText: { flex: 1, fontSize: 10.5, fontFamily: 'Inter_600SemiBold' },
+  dayChipMore: { fontSize: 10, fontFamily: 'Inter_600SemiBold', paddingStart: 4 },
   topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brand: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10, marginEnd: 10 },
   brandText: { flex: 1, minWidth: 0 },

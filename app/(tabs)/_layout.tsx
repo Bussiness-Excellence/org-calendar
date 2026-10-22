@@ -2,7 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { Redirect, Tabs } from 'expo-router';
 import React from 'react';
-import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { isSuperAdmin, useCalendar } from '@/lib/calendar-context';
 import { t } from '@/lib/i18n';
@@ -12,6 +12,9 @@ export default function TabLayout() {
   const isDark = colors.scheme === 'dark';
   const isIOS = Platform.OS === 'ios';
   const isWeb = Platform.OS === 'web';
+  const { width } = useWindowDimensions();
+  // On wide screens keep the three tabs together in the middle instead of spread edge to edge.
+  const tabSidePad = width >= 900 ? Math.max(0, (width - 560) / 2) : 0;
   const { authLoading, userId, profile, profileLoading, org } = useCalendar();
 
   // Nothing inside the tabs is reachable without an active account in an organization.
@@ -41,7 +44,7 @@ export default function TabLayout() {
           borderTopWidth: 1,
           borderTopColor: colors.border,
           elevation: 0,
-          ...(isWeb ? { height: 64, paddingBottom: 8 } : {}),
+          ...(isWeb ? { height: 64, paddingBottom: 8, paddingHorizontal: tabSidePad } : {}),
         },
         tabBarBackground: () =>
           isIOS ? (
