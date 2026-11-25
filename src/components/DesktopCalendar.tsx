@@ -14,6 +14,7 @@ import {
 import { dateTitle, displayTime, localDateString, monthGrid, monthTitle, parseLocalDate, shortDateTitle, shortStampLabel } from '@/lib/calendar-date';
 import { backIcon, dateLocale, forwardIcon, t, tn } from '@/lib/i18n';
 import { usePreferences } from '@/lib/preferences';
+import { useReminders } from '@/lib/reminders';
 import { TeamMemberList, memberCountLabel } from '@/components/TeamMembers';
 import { membersOf, orderedGroups, subGroupsOf } from '@/lib/departments';
 
@@ -79,6 +80,9 @@ function weekStart(dateKey: string): Date {
 export function DesktopCalendar(props: DesktopCalendarProps) {
   const colors = useColors();
   const { setThemeMode } = usePreferences();
+  const { reminders } = useReminders();
+  // personal reminders whose time has come and are not ticked off yet
+  const dueReminders = reminders.filter((r) => !r.done_at && new Date(r.remind_at).getTime() <= Date.now()).length;
   const [mode, setMode] = useState<Mode>('month');
   const {
     org, profile, showAdmin, groups, people, onAssign, canAssign, events, groupFilter, setGroupFilter, cursor, setCursor,
@@ -201,6 +205,21 @@ export function DesktopCalendar(props: DesktopCalendarProps) {
             <Text style={[styles.newText, { color: colors.primaryForeground }]}>{t('New event')}</Text>
           </Pressable>
           <NotificationsBell onOpenEvent={onBellOpen} />
+          <Pressable
+            testID="open-reminders"
+            onPress={() => router.push('/reminders' as Href)}
+            style={styles.iconBtn}
+            accessibilityRole="button"
+            accessibilityLabel={t('My reminders')}
+            {...({ title: t('My reminders') } as object)}
+          >
+            <Feather name="clock" size={19} color={colors.secondaryForeground} />
+            {dueReminders ? (
+              <View style={[styles.reminderBadge, { backgroundColor: colors.destructive, borderColor: colors.background }]}>
+                <Text style={styles.reminderBadgeText}>{dueReminders > 9 ? '9+' : dueReminders}</Text>
+              </View>
+            ) : null}
+          </Pressable>
           <Pressable
             onPress={() => setThemeMode(colors.scheme === 'dark' ? 'light' : 'dark')}
             style={styles.iconBtn}
@@ -560,6 +579,8 @@ const styles = StyleSheet.create({
   orgCaption: { fontSize: 9, fontFamily: 'Inter_600SemiBold', letterSpacing: 1.2, marginTop: 2 },
   nav: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   iconBtn: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  reminderBadge: { position: 'absolute', top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8, borderWidth: 2, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
+  reminderBadgeText: { color: '#FFFFFF', fontSize: 9, fontFamily: 'Inter_700Bold' },
   range: { minWidth: 190, textAlign: 'center', fontSize: 18, fontFamily: 'Inter_700Bold' },
   todayBtn: { height: 36, paddingHorizontal: 14, borderRadius: 9, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginStart: 6 },
   todayText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },

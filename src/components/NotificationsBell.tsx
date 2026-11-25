@@ -1,4 +1,5 @@
 import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +15,7 @@ const ICONS: Record<AppNotification['kind'], React.ComponentProps<typeof Feather
   approved: 'check-circle',
   sent_back: 'corner-up-left',
   shared: 'calendar',
+  reminder: 'clock',
 };
 
 /** Bell with unread count; opens the notification list. */
@@ -87,7 +89,10 @@ export function NotificationsBell({ onOpenEvent }: { onOpenEvent: (eventId: stri
                       key={n.id}
                       onPress={() => {
                         void markRead(n.id);
-                        if (n.event_id) {
+                        if (n.kind === 'reminder') {
+                          setOpen(false);
+                          router.push('/reminders');
+                        } else if (n.event_id) {
                           setOpen(false);
                           onOpenEvent(n.event_id, n.event_date);
                         }

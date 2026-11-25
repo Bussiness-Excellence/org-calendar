@@ -59,7 +59,7 @@ export function TimeField({
 
 /**
  * Drill-down chooser: pick the hour, then the minutes. "All day" clears the time.
- * The chosen hour is kept while minutes are picked.
+ * It always opens on the hour step, with the current hour highlighted.
  */
 export function TimePanel({
   value,
@@ -75,7 +75,8 @@ export function TimePanel({
   testID?: string;
 }) {
   const currentHour = value ? Number(value.slice(0, 2)) : null;
-  const [hour, setHour] = React.useState<number | null>(currentHour);
+  // always start at the hour step (the current hour is highlighted), then minutes
+  const [hour, setHour] = React.useState<number | null>(null);
   const currentMinute = value ? value.slice(3, 5) : null;
 
   return (

@@ -14,9 +14,11 @@ import { useCalendar, type CalendarEvent } from './calendar-context';
 import { dateTitle, displayTime, parseLocalDate } from './calendar-date';
 import { t } from './i18n';
 import { usePreferences } from './preferences';
+import { remindersKey, useReminders } from './reminders';
 import { supabase } from './supabase';
+import { enableWebPush } from './web-push';
 
-export type NotificationKind = 'assigned' | 'review_needed' | 'approved' | 'sent_back' | 'shared';
+export type NotificationKind = 'assigned' | 'review_needed' | 'approved' | 'sent_back' | 'shared' | 'reminder';
 
 export interface AppNotification {
   id: string;
@@ -26,6 +28,8 @@ export interface AppNotification {
   event_date: string | null;
   actor_id: string | null;
   note: string | null;
+  /** For 'reminder': the personal reminder that fired. */
+  reminder_id?: string | null;
   created_at: string;
   read_at: string | null;
 }
@@ -62,6 +66,8 @@ export function describeNotification(n: AppNotification, actorName?: string): { 
   const who = actorName || t('Someone');
   const when = n.event_date ? dateTitle(n.event_date) : '';
   switch (n.kind) {
+    case 'reminder':
+      return { title: t('Reminder'), body: n.note ? `${n.event_title} · ${n.note}` : n.event_title };
     case 'assigned':
       return { title: t('New task for you'), body: t('{who} assigned you “{title}” · {when}', { who, title: n.event_title, when }) };
     case 'review_needed':
@@ -94,6 +100,11 @@ export function NotificationsProvider({ children }: PropsWithChildren) {
   const key = useMemo(() => ['notifications', userId] as const, [userId]);
   const peopleRef = useRef(people);
   peopleRef.current = people;
+  const { reminders: myReminders } = useReminders();
+  // web: true once this browser receives real push messages (then the service worker shows them)
+  const pushOn = useRef(false);
+  // phone: personal reminders already scheduled as on-device alerts
+  const scheduledPersonal = useRef(new Set<string>());
 
   const query = useQuery<AppNotification[]>({
     queryKey: key,
@@ -134,6 +145,7 @@ export function NotificationsProvider({ children }: PropsWithChildren) {
     } else if (webPermission() !== 'unsupported') {
       const p = await window.Notification.requestPermission();
       result = p === 'default' ? 'undetermined' : p;
+      if (p === 'granted') pushOn.current = await enableWebPush();
     }
     queryClient.setQueryData(['notification-permission', userId], result);
     return result === 'granted';
@@ -152,6 +164,10 @@ export function NotificationsProvider({ children }: PropsWithChildren) {
           queryClient.setQueryData<AppNotification[]>(key, (old) => [n, ...(old ?? []).filter((x) => x.id !== n.id)]);
           const actor = peopleRef.current.find((p) => p.id === n.actor_id)?.full_name;
           const { title, body } = describeNotification(n, actor);
+          // already shown as an on-device alert at the exact time
+          if (n.kind === 'reminder' && isNative && n.reminder_id && scheduledPersonal.current.has(n.reminder_id)) return;
+          // the browser's push message shows it (even with the tab closed)
+          if (!isNative && pushOn.current) return;
           if (isNative) {
             void Notifications.scheduleNotificationAsync({ content: { title, body, data: { eventId: n.event_id } }, trigger: null }).catch(() => undefined);
           } else if (webPermission() === 'granted' && typeof document !== 'undefined' && document.visibilityState !== 'visible') {
@@ -163,11 +179,67 @@ export function NotificationsProvider({ children }: PropsWithChildren) {
           }
         },
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'reminders', filter: `user_id=eq.${userId}` },
+        () => void queryClient.invalidateQueries({ queryKey: remindersKey(userId) }),
+      )
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
   }, [active, key, queryClient, userId]);
+
+  // Web: keep this browser subscribed to push while alerts are allowed.
+  useEffect(() => {
+    if (isNative || !active || permission !== 'granted') return;
+    let cancelled = false;
+    void enableWebPush().then((ok) => {
+      if (!cancelled) pushOn.current = ok;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [active, permission, userId]);
+
+  // Phones: personal reminders ring on the device at their exact time, even with the app closed.
+  useEffect(() => {
+    if (!isNative || !active || !userId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const existing = await Notifications.getAllScheduledNotificationsAsync();
+        await Promise.all(
+          existing
+            .filter((r) => (r.content.data as { kind?: string } | undefined)?.kind === 'personal')
+            .map((r) => Notifications.cancelScheduledNotificationAsync(r.identifier)),
+        );
+        scheduledPersonal.current = new Set();
+        if (cancelled || permission !== 'granted') return;
+        const now = Date.now();
+        const upcoming = myReminders
+          .filter((r) => !r.done_at && new Date(r.remind_at).getTime() > now)
+          .slice(0, 40);
+        for (const r of upcoming) {
+          if (cancelled) return;
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: t('Reminder'),
+              body: r.notes ? `${r.title} · ${r.notes}` : r.title,
+              data: { kind: 'personal', reminderId: r.id },
+            },
+            trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(r.remind_at) },
+          });
+          scheduledPersonal.current.add(r.id);
+        }
+      } catch {
+        // best effort; the bell still gets the reminder from the server
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [active, myReminders, permission, userId]);
 
   // On-device reminders for my own and assigned events (phones only).
   useEffect(() => {

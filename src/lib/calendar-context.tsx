@@ -13,6 +13,7 @@ import { Platform } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PresenceProvider } from './presence';
 import { callAdmin, supabase } from './supabase';
+import { disableWebPush } from './web-push';
 import { APP_NAME, APP_TAGLINE } from './supabase-config';
 import { t } from '@/lib/i18n';
 
@@ -334,6 +335,7 @@ export function CalendarProvider({ children }: PropsWithChildren) {
   );
 
   const signOut = useCallback(async () => {
+    await disableWebPush();
     await supabase.auth.signOut();
     queryClient.clear();
   }, [queryClient]);
