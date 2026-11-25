@@ -99,7 +99,8 @@ export function DesktopCalendar(props: DesktopCalendarProps) {
   const { reminders } = useReminders();
   // personal reminders whose time has come and are not ticked off yet
   const dueReminders = reminders.filter((r) => !r.done_at && new Date(r.remind_at).getTime() <= Date.now()).length;
-  const [mode, setMode] = useState<Mode>('month');
+  // The web app opens on the week view.
+  const [mode, setMode] = useState<Mode>('week');
   const {
     org, profile, showAdmin, groups, people, onAssign, canAssign, events, allEvents, groupFilter, setGroupFilter, cursor, setCursor,
     selectedDate, setSelectedDate, reviewQueue, approvalsOn, busy, banner,
@@ -321,15 +322,6 @@ export function DesktopCalendar(props: DesktopCalendarProps) {
           <MiniMonth colors={colors} cursor={cursor} setCursor={setCursor} selectedDate={selectedDate} byDate={byDate} onPick={pickDay} />
 
           <Text style={[styles.sideHeading, { color: colors.mutedForeground }]}>{t('Departments').toUpperCase()}</Text>
-          <Pressable
-            onPress={() => setGroupFilter(null)}
-            style={[styles.groupRow, groupFilter === null && { backgroundColor: colors.accent }]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: groupFilter === null }}
-          >
-            <Feather name="grid" size={14} color={colors.highlight} />
-            <Text numberOfLines={1} style={[styles.groupName, { color: colors.foreground }]}>{t('All departments')}</Text>
-          </Pressable>
           {topGroups.map((dept) => {
             const subs = subGroupsOf(groups, dept.id);
             const deptSelected = groupFilter === dept.id;
@@ -489,7 +481,7 @@ export function DesktopCalendar(props: DesktopCalendarProps) {
                     </View>
                     <View style={styles.weekEvents}>
                       {list.map((e) => (
-                        <EventChip key={e.id} event={e} color={eventColor(e)} colors={colors} tall onPress={() => onOpenEvent(e)} subtitle={personName(e)} />
+                        <EventChip key={e.id} event={e} color={eventColor(e)} colors={colors} tall onPress={() => onOpenEvent(e)} department={groupName(e.group_id)} subtitle={personName(e)} />
                       ))}
                       {list.length === 0 ? <Text style={[styles.weekEmpty, { color: colors.faint }]}>—</Text> : null}
                     </View>
@@ -608,6 +600,9 @@ export function DesktopCalendar(props: DesktopCalendarProps) {
                           {[groupName(e.group_id), dur].filter(Boolean).join(' · ')}
                           {waiting ? ` · ${t('Pending')}` : ''}
                         </Text>
+                        {e.notes ? (
+                          <Text numberOfLines={2} style={[styles.tlNotes, { color: colors.mutedForeground }]}>{e.notes}</Text>
+                        ) : null}
                         <View style={styles.tlFoot}>
                           <View style={styles.avatars}>
                             {people.map((p, i) => (
@@ -820,13 +815,16 @@ function EventChip({
   colors,
   onPress,
   tall,
+  department,
   subtitle,
 }: {
   event: CalendarEvent;
   color: string;
   colors: Colors;
   onPress: () => void;
+  /** Week view: department, title, person and notes. */
   tall?: boolean;
+  department?: string;
   subtitle?: string;
 }) {
   const waiting = event.status !== 'approved';
@@ -848,14 +846,27 @@ function EventChip({
       accessibilityRole="button"
       accessibilityLabel={`${event.title}${waiting ? `, ${t('Pending')}` : ''}`}
     >
-      <View style={styles.blockLine}>
-        {waiting ? <Feather name="clock" size={10} color={colors.mutedForeground} /> : null}
-        {time && tall ? <Text numberOfLines={1} style={[styles.blockTime, { color: chip.text }]}>{time}</Text> : null}
-        <Text numberOfLines={1} style={[styles.blockText, { color: waiting ? colors.foreground : chip.text }]}>{event.title}</Text>
-      </View>
-      {tall && subtitle ? (
-        <Text numberOfLines={1} style={[styles.blockSub, { color: colors.mutedForeground }]}>{subtitle}</Text>
-      ) : null}
+      {tall ? (
+        <View style={styles.richChip}>
+          <View style={styles.richHead}>
+            {waiting ? <Feather name="clock" size={10} color={colors.mutedForeground} /> : null}
+            <Text numberOfLines={2} style={[styles.richDept, { color: chip.text }]}>{(department ?? '').toUpperCase()}</Text>
+          </View>
+          <Text numberOfLines={3} style={[styles.richTitle, { color: colors.foreground }]}>{event.title}</Text>
+          {time ? <Text style={[styles.richTime, { color: chip.text }]}>{time}{event.time_end ? ` – ${displayTime(event.time_end)}` : ''}</Text> : null}
+          {subtitle ? (
+            <Text numberOfLines={2} style={[styles.richPerson, { color: colors.secondaryForeground }]}>{subtitle}</Text>
+          ) : null}
+          {event.notes ? (
+            <Text numberOfLines={3} style={[styles.richNotes, { color: colors.mutedForeground }]}>{event.notes}</Text>
+          ) : null}
+        </View>
+      ) : (
+        <View style={styles.blockLine}>
+          {waiting ? <Feather name="clock" size={10} color={colors.mutedForeground} /> : null}
+          <Text numberOfLines={1} style={[styles.blockText, { color: waiting ? colors.foreground : chip.text }]}>{event.title}</Text>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -900,13 +911,13 @@ const styles = StyleSheet.create({
   stat: { flex: 1, borderWidth: 1, borderRadius: 14, paddingVertical: 12, alignItems: 'center', gap: 2 },
   statNum: { fontSize: 22, fontFamily: 'Inter_700Bold' },
   statLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.8 },
-  mini: { marginBottom: 16 },
+  mini: { marginBottom: 12 },
   miniHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, paddingHorizontal: 2 },
   miniTitle: { fontSize: 13, fontFamily: 'Inter_700Bold' },
   miniNav: { flexDirection: 'row', gap: 10 },
   miniGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   miniLabel: { width: '14.2857%', textAlign: 'center', fontSize: 10, fontFamily: 'Inter_700Bold', paddingVertical: 3 },
-  miniCell: { width: '14.2857%', alignItems: 'center', paddingVertical: 1 },
+  miniCell: { width: '14.2857%', alignItems: 'center', paddingVertical: 0 },
   miniDay: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   miniDayText: { fontSize: 11, fontFamily: 'Inter_500Medium' },
   miniDot: { width: 4, height: 4, borderRadius: 2, marginTop: 1 },
@@ -937,18 +948,25 @@ const styles = StyleSheet.create({
   cellEvents: { gap: 4 },
   more: { fontSize: 11, fontFamily: 'Inter_600SemiBold', paddingStart: 4 },
   block: { minHeight: 22, borderRadius: 7, borderStartWidth: 3, paddingHorizontal: 6, paddingVertical: 3, justifyContent: 'center' },
-  blockTall: { paddingVertical: 7 },
+  blockTall: { paddingVertical: 8, paddingHorizontal: 7, borderRadius: 9 },
   blockLine: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   blockText: { flex: 1, minWidth: 0, fontSize: 11.5, fontFamily: 'Inter_600SemiBold', textAlign: 'auto', writingDirection: 'auto' },
   blockTime: { fontSize: 11.5, fontFamily: 'Inter_700Bold', flexShrink: 0 },
   blockSub: { fontSize: 11, marginTop: 2 },
+  richChip: { gap: 3 },
+  richHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 5 },
+  richDept: { flex: 1, minWidth: 0, fontSize: 9.5, fontFamily: 'Inter_700Bold', letterSpacing: 0.6 },
+  richTime: { fontSize: 10.5, fontFamily: 'Inter_700Bold' },
+  richTitle: { fontSize: 13, fontFamily: 'Inter_700Bold', lineHeight: 17, writingDirection: 'auto' },
+  richPerson: { fontSize: 11.5, fontFamily: 'Inter_500Medium' },
+  richNotes: { fontSize: 10.5, fontFamily: 'Inter_400Regular', lineHeight: 14, marginTop: 1, writingDirection: 'auto' },
   week: { flexDirection: 'row', gap: 8, flex: 1 },
   weekCol: { flex: 1, minWidth: 0, minHeight: 520, borderWidth: 1, borderRadius: 14, overflow: 'hidden' },
   weekHead: { paddingVertical: 10, alignItems: 'center', borderBottomWidth: 1, gap: 4 },
   weekDay: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1 },
   weekNum: { minWidth: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   weekNumText: { fontSize: 18, fontFamily: 'Inter_700Bold' },
-  weekEvents: { padding: 6, gap: 6 },
+  weekEvents: { padding: 5, gap: 6 },
   weekEmpty: { textAlign: 'center', marginTop: 12 },
   list: { borderWidth: 1, borderRadius: 14, overflow: 'hidden' },
   listDate: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 0.8, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6, borderTopWidth: 1 },
@@ -987,6 +1005,7 @@ const styles = StyleSheet.create({
   tlCard: { flex: 1, minWidth: 0, borderRadius: 14, borderWidth: 1, borderStartWidth: 4, paddingVertical: 12, paddingHorizontal: 14, gap: 4 },
   tlTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', lineHeight: 19 },
   tlMeta: { fontSize: 12 },
+  tlNotes: { fontSize: 11, lineHeight: 15, writingDirection: 'auto' },
   tlFoot: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
   avatars: { flexDirection: 'row' },
   miniAvatar: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
