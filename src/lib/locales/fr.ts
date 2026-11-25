@@ -442,5 +442,6 @@ export const fr: Record<string, string> = {
   "Last seen today at {time}": "Vu aujourd’hui à {time}",
   "Last seen yesterday at {time}": "Vu hier à {time}",
   "Last seen {date}": "Vu le {date}",
-  "Not signed in yet": "Jamais connecté"
+  "Not signed in yet": "Jamais connecté",
+  "Online": "En ligne"
 };

@@ -121,3 +121,19 @@ export function lastSeenLabel(iso: string | null | undefined, now: number, onlin
     date: new Intl.DateTimeFormat(dateLocale(), sameYear ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' }).format(then),
   });
 }
+
+/** Short form of lastSeenLabel for narrow places: "Online", "5 min ago", "Today 9:10 AM", "Nov 21". */
+export function lastSeenShort(iso: string | null | undefined, now: number, onlineWindowMs: number): string {
+  if (!iso) return t('Not signed in yet');
+  const then = new Date(iso);
+  const diff = now - then.getTime();
+  if (diff < onlineWindowMs) return t('Online');
+  if (diff < 3_600_000) return t('{n} min ago', { n: Math.max(1, Math.floor(diff / 60_000)) });
+  const today = new Date(now);
+  const yesterday = new Date(now);
+  yesterday.setDate(today.getDate() - 1);
+  if (sameDay(then, today)) return t('Today {time}', { time: clock(then) });
+  if (sameDay(then, yesterday)) return t('Yesterday {time}', { time: clock(then) });
+  const sameYear = then.getFullYear() === today.getFullYear();
+  return new Intl.DateTimeFormat(dateLocale(), sameYear ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' }).format(then);
+}

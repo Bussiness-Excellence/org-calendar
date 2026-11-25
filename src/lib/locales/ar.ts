@@ -479,5 +479,6 @@ export const ar: Record<string, string> = {
   "Last seen today at {time}": "آخر ظهور اليوم {time}",
   "Last seen yesterday at {time}": "آخر ظهور أمس {time}",
   "Last seen {date}": "آخر ظهور {date}",
-  "Not signed in yet": "لم يسجّل الدخول بعد"
+  "Not signed in yet": "لم يسجّل الدخول بعد",
+  "Online": "متصل"
 };

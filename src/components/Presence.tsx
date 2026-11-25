@@ -2,7 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
-import { lastSeenLabel } from '@/lib/calendar-date';
+import { lastSeenLabel, lastSeenShort } from '@/lib/calendar-date';
 import { isOnline, ONLINE_WINDOW_MS, usePresence } from '@/lib/presence';
 
 type Colors = ReturnType<typeof useColors>;
@@ -14,9 +14,14 @@ export function LastSeenPatch({ personId, colors, small = false }: { personId: s
   const { lastSeen, now } = usePresence();
   const iso = lastSeen[personId];
   const online = isOnline(iso, now);
+  const full = lastSeenLabel(iso, now, ONLINE_WINDOW_MS);
+  // Narrow places get the short form; the full sentence stays available as a tooltip / screen-reader label.
+  const label = small ? lastSeenShort(iso, now, ONLINE_WINDOW_MS) : full;
   return (
     <View
       testID={`seen-${personId}`}
+      accessibilityLabel={full}
+      {...({ title: full } as object)}
       style={[styles.patch, small && styles.patchSmall, { backgroundColor: online ? colors.successSurface : colors.muted }]}
     >
       {online ? (
@@ -28,7 +33,7 @@ export function LastSeenPatch({ personId, colors, small = false }: { personId: s
         numberOfLines={1}
         style={[styles.patchText, small && styles.patchTextSmall, { color: online ? colors.success : colors.mutedForeground }]}
       >
-        {lastSeenLabel(iso, now, ONLINE_WINDOW_MS)}
+        {label}
       </Text>
     </View>
   );
