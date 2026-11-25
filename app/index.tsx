@@ -20,7 +20,7 @@ import { LanguageSwitch } from '@/components/PreferenceControls';
 import { useColors } from '@/hooks/useColors';
 import { getRememberedEmail, rememberEmail, useCalendar } from '@/lib/calendar-context';
 import { pickLogo, type PickedLogo } from '@/lib/logo-picker';
-import { APP_NAME, APP_TAGLINE, FREE_USER_LIMIT, isConfigured, PRIVACY_URL } from '@/lib/supabase-config';
+import { APP_NAME, APP_TAGLINE, FREE_USER_LIMIT, isConfigured, OPEN_SIGNUP, PRIVACY_URL } from '@/lib/supabase-config';
 import * as Linking from 'expo-linking';
 import { arrowBack, t } from '@/lib/i18n';
 
@@ -339,22 +339,26 @@ function SignInScreen({ onRegister }: { onRegister: () => void }) {
         <Text style={[styles.rememberText, { color: colors.secondaryForeground }]}>{t('Remember my email')}</Text>
       </Pressable>
       <PrimaryButton testID="sign-in-submit" label={t('Sign in')} busy={busy} onPress={submit} />
-      <Text style={[styles.footnote, { color: colors.mutedForeground }]}>
-        {t('Joining a team? Your calendar admin creates your account.')}
-      </Text>
+      {OPEN_SIGNUP ? (
+        <>
+          <Text style={[styles.footnote, { color: colors.mutedForeground }]}>
+            {t('Joining a team? Your calendar admin creates your account.')}
+          </Text>
 
-      <View style={[styles.divider, { backgroundColor: colors.border }]} />
-      <Text style={[styles.altTitle, { color: colors.foreground }]}>{t('New to {app}?', { app: APP_NAME })}</Text>
-      <Pressable
-        testID="go-register"
-        onPress={onRegister}
-        style={({ pressed }) => [styles.secondaryButton, { borderColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
-        accessibilityRole="button"
-      >
-        <Feather name="plus-circle" size={16} color={colors.primary} />
-        <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>{t('Create your organization')}</Text>
-      </Pressable>
-      <Text style={[styles.footnote, { color: colors.mutedForeground }]}>{t('Free for up to {n} people.', { n: FREE_USER_LIMIT })}</Text>
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <Text style={[styles.altTitle, { color: colors.foreground }]}>{t('New to {app}?', { app: APP_NAME })}</Text>
+          <Pressable
+            testID="go-register"
+            onPress={onRegister}
+            style={({ pressed }) => [styles.secondaryButton, { borderColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
+            accessibilityRole="button"
+          >
+            <Feather name="plus-circle" size={16} color={colors.primary} />
+            <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>{t('Create your organization')}</Text>
+          </Pressable>
+          <Text style={[styles.footnote, { color: colors.mutedForeground }]}>{t('Free for up to {n} people.', { n: FREE_USER_LIMIT })}</Text>
+        </>
+      ) : null}
     </AuthShell>
   );
 }

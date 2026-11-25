@@ -34,6 +34,12 @@ export const proYearlyTotal = (people: number) => formatUsd(Math.max(1, people) 
  * digital upgrades, so prices and the "Request Pro" button appear on the web only.
  */
 export const SELL_IN_APP = Platform.OS === 'web';
+/**
+ * Whether the sign-in screen offers "Create your organization". Set
+ * EXPO_PUBLIC_OPEN_SIGNUP=false for a deployment that serves one company only
+ * (its admins create every account), and true to let new companies sign up.
+ */
+export const OPEN_SIGNUP = process.env.EXPO_PUBLIC_OPEN_SIGNUP !== 'false';
 export const FREE_USER_LIMIT = 10;
 /** An organization with at least this many places has no plan to manage (set by the app owner, e.g. the owner's own company). */
 export const UNLIMITED_USER_LIMIT = 10000;
