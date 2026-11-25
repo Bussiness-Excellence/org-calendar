@@ -28,7 +28,7 @@ import {
 } from '@/lib/calendar-context';
 import { pickLogo } from '@/lib/logo-picker';
 import { AdminError, callAdmin, supabase } from '@/lib/supabase';
-import { FREE_USER_LIMIT, proYearlyTotal } from '@/lib/supabase-config';
+import { FREE_USER_LIMIT, UNLIMITED_USER_LIMIT, proYearlyTotal } from '@/lib/supabase-config';
 import { dateLocale, forwardIcon, t, tn } from '@/lib/i18n';
 
 type Colors = ReturnType<typeof useColors>;
@@ -267,6 +267,8 @@ function OrganizationSection({ colors }: { colors: Colors }) {
 function PlanSection({ colors }: { colors: Colors }) {
   const { org } = useCalendar();
   if (!org) return null;
+  // Unlimited organizations have nothing to upgrade, so the plan section is hidden.
+  if (!org.pro_active && org.user_limit >= UNLIMITED_USER_LIMIT) return null;
   const pro = org.pro_active;
   const used = org.active_users;
   const limit = org.user_limit || FREE_USER_LIMIT;
@@ -550,7 +552,7 @@ function PeopleSection({ colors }: { colors: Colors }) {
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <SectionHeader
         title={t('People')}
-        meta={org && !org.pro_active ? t('{n} active of {limit}', { n: org.active_users, limit: org.user_limit }) : t('{n} active', { n: org?.active_users ?? 0 })}
+        meta={org && !org.pro_active && org.user_limit < UNLIMITED_USER_LIMIT ? t('{n} active of {limit}', { n: org.active_users, limit: org.user_limit }) : t('{n} active', { n: org?.active_users ?? 0 })}
         action={<SmallButton testID="add-person" label={t('Add person')} icon="user-plus" onPress={() => open('new')} colors={colors} />}
         colors={colors}
       />

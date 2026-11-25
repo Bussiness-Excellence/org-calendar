@@ -35,5 +35,7 @@ export const proYearlyTotal = (people: number) => formatUsd(Math.max(1, people) 
  */
 export const SELL_IN_APP = Platform.OS === 'web';
 export const FREE_USER_LIMIT = 10;
+/** An organization with at least this many places has no plan to manage (set by the app owner, e.g. the owner's own company). */
+export const UNLIMITED_USER_LIMIT = 10000;
 
 export const isConfigured = !!SUPABASE_URL && !!SUPABASE_ANON_KEY;
