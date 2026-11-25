@@ -388,5 +388,11 @@ export const ar: Record<string, string> = {
   "By creating an organization you agree to the": "بإنشاء مؤسسة فإنك توافق على",
   "Only me": "أنا فقط",
   "Specific team": "فريق محدد",
-  "Share with": "مشاركة مع"
+  "Share with": "مشاركة مع",
+  "Choose the hour": "اختر الساعة",
+  "Choose the minutes": "اختر الدقائق",
+  "Change hour": "تغيير الساعة",
+  "All day (no time)": "طوال اليوم (بدون وقت)",
+  "Done": "تم",
+  "Leave the times empty for an all-day event.": "اترك الوقت فارغًا لفعالية تستمر طوال اليوم."
 };

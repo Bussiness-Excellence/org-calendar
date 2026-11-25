@@ -366,5 +366,11 @@ export const fr: Record<string, string> = {
   "By creating an organization you agree to the": "En créant une organisation, vous acceptez la",
   "Only me": "Moi seulement",
   "Specific team": "Une équipe précise",
-  "Share with": "Partager avec"
+  "Share with": "Partager avec",
+  "Choose the hour": "Choisissez l’heure",
+  "Choose the minutes": "Choisissez les minutes",
+  "Change hour": "Changer l’heure",
+  "All day (no time)": "Toute la journée (sans heure)",
+  "Done": "OK",
+  "Leave the times empty for an all-day event.": "Laissez les heures vides pour un événement d’une journée entière."
 };

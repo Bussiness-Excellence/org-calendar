@@ -21,6 +21,7 @@ import { BrandMark } from '@/components/BrandMark';
 import { DesktopCalendar } from '@/components/DesktopCalendar';
 import { NotificationsBell } from '@/components/NotificationsBell';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import { TimeField, TimePanel, oneHourLater } from '@/components/TimePicker';
 import { useColors } from '@/hooks/useColors';
 import {
   canEditEvent,
@@ -1299,6 +1300,7 @@ function EventForm({
   colors: ReturnType<typeof useColors>;
   testIDPrefix: string;
 }) {
+  const [openTime, setOpenTime] = useState<'start' | 'end' | null>(null);
   // "Specific team" is team visibility with a chosen team; "My team" is team visibility without one.
   const visibilityChoice =
     draft.visibility === 'group' ? (draft.shared_group_id ? 'team' : 'group') : draft.visibility;
@@ -1340,38 +1342,46 @@ function EventForm({
       />
 
       <View style={styles.twoFields}>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.fieldLabel, styles.fieldGap, { color: colors.secondaryForeground }]}>
-            {t('Start time')}
-          </Text>
-          <TextInput
-            testID={`${testIDPrefix}-start`}
-            value={draft.time_start}
-            onChangeText={(value) => setField('time_start', value)}
-            placeholder={t('Optional')}
-            placeholderTextColor={colors.mutedForeground}
-            keyboardType="numbers-and-punctuation"
-            style={[styles.fieldInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]}
-          />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.fieldLabel, styles.fieldGap, { color: colors.secondaryForeground }]}>
-            {t('End time')}
-          </Text>
-          <TextInput
-            testID={`${testIDPrefix}-end`}
-            value={draft.time_end}
-            onChangeText={(value) => setField('time_end', value)}
-            placeholder={t('Optional')}
-            placeholderTextColor={colors.mutedForeground}
-            keyboardType="numbers-and-punctuation"
-            style={[styles.fieldInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]}
-          />
-        </View>
+        <TimeField
+          label={t('Start time')}
+          value={draft.time_start}
+          open={openTime === 'start'}
+          onPress={() => setOpenTime(openTime === 'start' ? null : 'start')}
+          colors={colors}
+          testID={`${testIDPrefix}-start`}
+        />
+        <TimeField
+          label={t('End time')}
+          value={draft.time_end}
+          open={openTime === 'end'}
+          onPress={() => setOpenTime(openTime === 'end' ? null : 'end')}
+          colors={colors}
+          testID={`${testIDPrefix}-end`}
+        />
       </View>
-      <Text style={[styles.fieldHint, { color: colors.mutedForeground }]}>
-        {t('Use 24-hour time, such as 09:30. Leave blank for all day.')}
-      </Text>
+      {openTime ? (
+        <TimePanel
+          key={openTime}
+          value={openTime === 'start' ? draft.time_start : draft.time_end}
+          onChange={(value) => {
+            if (openTime === 'start') {
+              setField('time_start', value);
+              // keep the end after the start: default to one hour later
+              if (!value) setField('time_end', '');
+              else if (!draft.time_end || draft.time_end <= value) setField('time_end', oneHourLater(value));
+            } else {
+              setField('time_end', value);
+            }
+          }}
+          onClose={() => setOpenTime(null)}
+          colors={colors}
+          testID={`${testIDPrefix}-${openTime}-panel`}
+        />
+      ) : (
+        <Text style={[styles.fieldHint, { color: colors.mutedForeground }]}>
+          {t('Leave the times empty for an all-day event.')}
+        </Text>
+      )}
 
       {groups.length ? (
         <>
