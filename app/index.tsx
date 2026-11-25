@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -64,22 +65,80 @@ export default function EntryScreen() {
   return <Redirect href="/(tabs)" />;
 }
 
+/** Crystal-blue sign-in gate: a deep blue gradient, faceted glass shards and a frosted card. */
 function AuthShell({ children }: { children: React.ReactNode }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const dark = colors.scheme === 'dark';
   const top = Platform.OS === 'web' ? 40 : insets.top;
   const bottom = Platform.OS === 'web' ? 34 : insets.bottom;
   return (
-    <View style={[styles.authRoot, { backgroundColor: colors.background }]}>
+    <View style={[styles.authRoot, { backgroundColor: '#061A3A' }]}>
+      <LinearGradient
+        colors={dark ? ['#020617', '#071C44', '#0B4D89'] : ['#061A3A', '#0B4D89', '#3AA7E6']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <CrystalShards />
       <KeyboardAwareScrollViewCompat
         style={styles.authScroll}
         contentContainerStyle={[styles.authContent, { paddingTop: top + 20, paddingBottom: bottom + 20 }]}
         bottomOffset={24}
         keyboardShouldPersistTaps="handled"
       >
-        <LanguageSwitch />
-        <View style={[styles.authCard, { backgroundColor: colors.card, borderColor: colors.border }]}>{children}</View>
+        <LanguageSwitch onDark />
+        <View style={styles.gateGlow}>
+          <View
+            style={[
+              styles.authCard,
+              styles.glassCard,
+              {
+                backgroundColor: dark ? 'rgba(10, 18, 34, 0.9)' : 'rgba(255, 255, 255, 0.94)',
+                borderColor: dark ? 'rgba(125, 211, 252, 0.35)' : 'rgba(186, 230, 253, 0.9)',
+              },
+            ]}
+          >
+            <LinearGradient
+              colors={['#7DD3FC', '#38BDF8', '#2563EB']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.gateBar}
+            />
+            {children}
+          </View>
+        </View>
       </KeyboardAwareScrollViewCompat>
+    </View>
+  );
+}
+
+/** Decorative faceted crystals behind the card. Purely visual. */
+function CrystalShards() {
+  const shard = (size: number, style: object, fill: number, edge: number) => (
+    <View
+      style={[
+        styles.shard,
+        {
+          width: size,
+          height: size,
+          backgroundColor: `rgba(224, 242, 254, ${fill})`,
+          borderColor: `rgba(255, 255, 255, ${edge})`,
+        },
+        style,
+      ]}
+    />
+  );
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <View style={[styles.glowOrb, { top: -140, left: -120, backgroundColor: 'rgba(56, 189, 248, 0.11)' }]} />
+      <View style={[styles.glowOrb, { bottom: -160, right: -140, backgroundColor: 'rgba(125, 211, 252, 0.1)' }]} />
+      {shard(260, { top: -70, right: -60 }, 0.07, 0.28)}
+      {shard(150, { top: 120, right: 70 }, 0.05, 0.22)}
+      {shard(200, { bottom: -50, left: -40 }, 0.08, 0.3)}
+      {shard(90, { bottom: 140, left: 110 }, 0.06, 0.25)}
+      {shard(46, { top: 90, left: 70 }, 0.14, 0.45)}
+      {shard(28, { bottom: 90, right: 120 }, 0.18, 0.5)}
     </View>
   );
 }
@@ -89,7 +148,9 @@ function ProductHeader({ subtitle }: { subtitle: string }) {
   return (
     <>
       <View style={styles.brandBlock}>
-        <Image source={require('../assets/images/icon.png')} style={styles.brandIcon} accessibilityLabel={`${APP_NAME} icon`} />
+        <View style={styles.brandIconGlow}>
+          <Image source={require('../assets/images/icon.png')} style={styles.brandIcon} accessibilityLabel={`${APP_NAME} icon`} />
+        </View>
         <Text style={[styles.brandName, { color: colors.primary }]}>{APP_NAME.toUpperCase()}</Text>
       </View>
       <Text style={[styles.tagline, { color: colors.mutedForeground }]}>{t(APP_TAGLINE)}</Text>
@@ -462,7 +523,40 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   brandBlock: { alignItems: 'center', marginBottom: 14 },
-  brandIcon: { width: 56, height: 56, borderRadius: 16, marginBottom: 9 },
+  brandIconGlow: {
+    borderRadius: 18,
+    marginBottom: 11,
+    shadowColor: '#38BDF8',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.55,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  brandIcon: { width: 60, height: 60, borderRadius: 17 },
+  gateGlow: {
+    width: '100%',
+    maxWidth: 410,
+    alignSelf: 'center',
+    borderRadius: 24,
+    shadowColor: '#38BDF8',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 38,
+  },
+  glassCard: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    paddingTop: 30,
+    shadowColor: '#020617',
+    shadowOffset: { width: 0, height: 24 },
+    shadowOpacity: 0.35,
+    shadowRadius: 40,
+    elevation: 14,
+    ...(Platform.OS === 'web' ? ({ backdropFilter: 'blur(14px)' } as object) : {}),
+  },
+  gateBar: { position: 'absolute', top: 0, left: 0, right: 0, height: 5 },
+  shard: { position: 'absolute', borderWidth: 1, borderRadius: 18, transform: [{ rotate: '45deg' }] },
+  glowOrb: { position: 'absolute', width: 420, height: 420, borderRadius: 210 },
   brandName: { fontSize: 16, fontFamily: 'Inter_700Bold', letterSpacing: 1.6 },
   tagline: { fontSize: 12, fontFamily: 'Inter_500Medium', textAlign: 'center', marginTop: 6 },
   brandRule: { height: 2, opacity: 0.16, marginBottom: 16 },

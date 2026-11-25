@@ -44,15 +44,18 @@ function Segmented<T extends string>({
 }
 
 /** Compact language switch for the sign-in screens. */
-export function LanguageSwitch() {
+/** `onDark`: light text for use on the sign-in screen's dark blue background. */
+export function LanguageSwitch({ onDark = false }: { onDark?: boolean } = {}) {
   const colors = useColors();
   const { language, setLanguage } = usePreferences();
+  const active = onDark ? '#FFFFFF' : colors.primary;
+  const idle = onDark ? 'rgba(224, 242, 254, 0.72)' : colors.mutedForeground;
   return (
     <View style={styles.langRow}>
-      <Feather name="globe" size={14} color={colors.mutedForeground} />
+      <Feather name="globe" size={14} color={idle} />
       {LANGUAGES.map((l) => (
         <Pressable key={l.code} onPress={() => setLanguage(l.code)} accessibilityRole="button" accessibilityState={{ selected: language === l.code }} hitSlop={6}>
-          <Text style={[styles.langText, { color: language === l.code ? colors.primary : colors.mutedForeground, fontFamily: language === l.code ? 'Inter_700Bold' : 'Inter_500Medium' }]}>
+          <Text style={[styles.langText, { color: language === l.code ? active : idle, fontFamily: language === l.code ? 'Inter_700Bold' : 'Inter_500Medium' }]}>
             {l.label}
           </Text>
         </Pressable>
