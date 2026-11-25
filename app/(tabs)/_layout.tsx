@@ -58,7 +58,7 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="calendar"
         options={{
           title: t('Calendar'),
           ...(desktop ? { tabBarStyle: { display: 'none' as const } } : {}),

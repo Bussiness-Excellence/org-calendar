@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Redirect } from 'expo-router';
+import { Redirect, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -62,7 +62,7 @@ export default function EntryScreen() {
 
   if (profile.must_change_password) return <PasswordEditor required />;
 
-  return <Redirect href="/(tabs)" />;
+  return <Redirect href={"/calendar" as Href} />;
 }
 
 /** Crystal-blue sign-in gate: a deep blue gradient, faceted glass shards and a frosted card. */
