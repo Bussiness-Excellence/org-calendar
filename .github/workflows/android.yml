@@ -85,7 +85,7 @@ jobs:
             exit 1
           fi
       - name: Name the APK
-        run: cp android/app/build/outputs/apk/release/app-release.apk OrgCalendar-test.apk
+        run: cp android/app/build/outputs/apk/release/app-release.apk OrgCalendar.apk
       - name: Keep the Play Store bundle
         if: env.HAS_UPLOAD_KEY == 'true'
         uses: actions/upload-artifact@v4
@@ -107,10 +107,10 @@ jobs:
           fail_on_unmatched_files: false
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: test-${{ github.run_number }}
-          name: Test build ${{ github.run_number }}
+          tag_name: v1.0.${{ github.run_number }}
+          name: Org Calendar 1.0.${{ github.run_number }}
           make_latest: true
-          files: OrgCalendar-test.apk
+          files: OrgCalendar.apk
           body: |
             Org Calendar for Android (direct install). Connected to the live database.
-            Download OrgCalendar-test.apk on your phone, open it and allow installing from this source.
+            Download OrgCalendar.apk on your phone, open it and allow installing from this source.

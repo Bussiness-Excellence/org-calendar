@@ -19,10 +19,10 @@ its own people can see.
   device language and switchable on the sign-in and Account screens
 - **Appearance:** System, Light or Dark
 
-## Test links
+## Links
 
-- Web app: https://bussiness-excellence.github.io/org-calendar/
-- Android APK (latest): https://github.com/Bussiness-Excellence/org-calendar/releases/latest/download/OrgCalendar-test.apk
+- Web app: https://org-calendar.vercel.app (also https://bussiness-excellence.github.io/org-calendar/)
+- Android APK (latest): https://github.com/Bussiness-Excellence/org-calendar/releases/latest/download/OrgCalendar.apk
 
 Both are rebuilt automatically on every push to `main` (see `.github/workflows/`).
 
