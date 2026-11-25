@@ -471,5 +471,17 @@ export const fr: Record<string, string> = {
   "Write what to remind you about.": "Écrivez de quoi vous rappeler.",
   "Choose a date and time.": "Choisissez une date et une heure.",
   "That time has already passed. Choose a later time.": "Cette heure est déjà passée. Choisissez plus tard.",
-  "Event reminders ring in the phone app. On the web, allowed alerts arrive as browser notifications, even with the tab closed.": "Les rappels d’événements sonnent dans l’application mobile. Sur le web, les alertes autorisées arrivent en notifications du navigateur, même onglet fermé."
+  "Event reminders ring in the phone app. On the web, allowed alerts arrive as browser notifications, even with the tab closed.": "Les rappels d’événements sonnent dans l’application mobile. Sur le web, les alertes autorisées arrivent en notifications du navigateur, même onglet fermé.",
+  "{name} Calendar": "Calendrier {name}",
+  "{n} min": "{n} min",
+  "{h} hr {m} min": "{h} h {m} min",
+  "{n} hr": "{n} h",
+  "{n} event scheduled": "{n} événement prévu",
+  "{n} events scheduled": "{n} événements prévus",
+  "Search events, people, departments…": "Rechercher événements, personnes, départements…",
+  "Search": "Rechercher",
+  "Clear": "Effacer",
+  "Nothing found for “{q}”.": "Aucun résultat pour « {q} ».",
+  "Assign a task": "Attribuer une tâche",
+  "Show calendar": "Voir le calendrier"
 };

@@ -36,9 +36,9 @@ import {
   type CalendarPerson,
   type EventDraft,
 } from '@/lib/calendar-context';
-import { dateTitle, displayTime, localDateString, monthGrid, monthTitle, parseLocalDate, shortDateTitle, shortStampLabel, stampLabel, weekdayLabels } from '@/lib/calendar-date';
+import { dateTitle, displayTime, localDateString, monthTitle, monthWeeks, parseLocalDate, shortDateTitle, shortStampLabel, stampLabel, weekdayLabels } from '@/lib/calendar-date';
 import { eventPalette } from '@/constants/colors';
-import { arrowForward, backIcon, forwardIcon, t, tn } from '@/lib/i18n';
+import { arrowForward, backIcon, dateLocale, forwardIcon, t, tn } from '@/lib/i18n';
 
 type CalendarView = 'month' | 'schedule';
 
@@ -97,7 +97,7 @@ export default function CalendarScreen() {
   const [rejectError, setRejectError] = useState<string>('');
 
   const elevated = isSuperAdmin(profile);
-  const dates = useMemo(() => monthGrid(cursor), [cursor]);
+  const dates = useMemo(() => monthWeeks(cursor), [cursor]);
   const today = localDateString();
   const visibleEvents = useMemo(
     () =>
@@ -386,6 +386,7 @@ export default function CalendarScreen() {
           onAssign={(person) => openNewEvent(person)}
           canAssign={canAssign}
           events={visibleEvents}
+          allEvents={events}
           groupFilter={groupFilter}
           setGroupFilter={setGroupFilter}
           cursor={cursor}
@@ -456,20 +457,20 @@ export default function CalendarScreen() {
               onPress={() => openNewEvent()}
               style={({ pressed }) => [
                 styles.addButton,
-                { backgroundColor: colors.primary, opacity: pressed ? 0.84 : 1 },
+                { backgroundColor: colors.cta, opacity: pressed ? 0.84 : 1 },
               ]}
               accessibilityRole="button"
               accessibilityLabel={t('Add event')}
             >
-              <Feather name="plus" size={21} color={colors.primaryForeground} />
+              <Feather name="plus" size={21} color={colors.ctaForeground} />
             </Pressable>
             <Pressable
               onPress={() => router.push('/(tabs)/profile')}
-              style={[styles.profileButton, { backgroundColor: colors.accent }]}
+              style={[styles.profileButton, { backgroundColor: colors.highlight }]}
               accessibilityRole="button"
               accessibilityLabel={t('Open profile')}
             >
-              <Text style={[styles.profileInitial, { color: colors.primary }]}>
+              <Text style={[styles.profileInitial, { color: colors.highlightForeground }]}>
                 {profile?.initials || initialsFor(profile?.full_name)}
               </Text>
             </Pressable>
@@ -652,7 +653,7 @@ export default function CalendarScreen() {
         <View
           style={[
             styles.viewSwitcher,
-            { backgroundColor: colors.muted, borderColor: colors.border },
+            { backgroundColor: colors.segment, borderColor: colors.segment },
           ]}
         >
           {(['month', 'schedule'] as const).map((mode) => (
@@ -664,7 +665,7 @@ export default function CalendarScreen() {
                 styles.viewOption,
                 view === mode && [
                   styles.viewOptionActive,
-                  { backgroundColor: colors.card },
+                  { backgroundColor: colors.segmentActive },
                 ],
               ]}
               accessibilityRole="button"
@@ -673,12 +674,12 @@ export default function CalendarScreen() {
               <Feather
                 name={mode === 'month' ? 'calendar' : 'list'}
                 size={15}
-                color={view === mode ? colors.primary : colors.mutedForeground}
+                color={view === mode ? colors.segmentActiveForeground : colors.mutedForeground}
               />
               <Text
                 style={[
                   styles.viewOptionText,
-                  { color: view === mode ? colors.foreground : colors.secondaryForeground },
+                  { color: view === mode ? colors.segmentActiveForeground : colors.secondaryForeground },
                 ]}
               >
                 {mode === 'month' ? t('Month') : t('Schedule')}
@@ -756,7 +757,7 @@ export default function CalendarScreen() {
                 </Text>
               ))}
             </View>
-            <View style={[styles.dayGrid, { borderTopColor: colors.border, borderLeftColor: colors.border }]}>
+            <View style={styles.dayGrid}>
               {dates.map((date) => {
                 const dateKey = localDateString(date);
                 const inMonth = date.getMonth() === cursor.getMonth();
@@ -768,52 +769,53 @@ export default function CalendarScreen() {
                     key={dateKey}
                     testID={`calendar-day-${dateKey}`}
                     onPress={() => selectDay(date)}
-                    style={[
-                      styles.dayCell,
-                      {
-                        borderRightColor: colors.border,
-                        borderBottomColor: colors.border,
-                        backgroundColor: selected ? colors.accent : colors.card,
-                      },
-                    ]}
+                    style={styles.daySlot}
                     accessibilityRole="button"
                     accessibilityLabel={`${dateTitle(dateKey)}${dayEvents.length ? `, ${tn(dayEvents.length, '{n} event', '{n} events')}` : ''}`}
                     accessibilityState={{ selected }}
                   >
                     <View
                       style={[
-                        styles.dayNumber,
-                        selected && { backgroundColor: colors.primary },
-                        isToday && !selected && { borderColor: colors.primary, borderWidth: 1 },
+                        styles.dayCell,
+                        {
+                          borderColor: inMonth ? colors.tileBorder : 'transparent',
+                          backgroundColor: inMonth ? colors.tile : 'transparent',
+                        },
+                        selected && !isToday && { borderColor: colors.highlight, backgroundColor: colors.accent, borderWidth: 1.5 },
+                        isToday && { borderColor: colors.today, backgroundColor: colors.todaySurface, borderWidth: 1.5 },
                       ]}
                     >
-                      <Text
-                        style={[
-                          styles.dayNumberText,
-                          {
-                            color: !inMonth
-                              ? colors.mutedForeground
-                              : selected
-                                ? colors.primaryForeground
-                                : colors.foreground,
-                          },
-                        ]}
-                      >
-                        {date.getDate()}
-                      </Text>
-                    </View>
-                    <View style={styles.dayDots}>
-                      {dayEvents.slice(0, 3).map((event) => (
-                        <View
-                          key={event.id}
-                          style={[styles.dayDot, { backgroundColor: eventColor(event) }]}
-                        />
-                      ))}
-                      {dayEvents.length > 3 ? (
-                        <Text style={[styles.dayMore, { color: colors.mutedForeground }]}>
-                          +{dayEvents.length - 3}
+                      <View style={[styles.dayNumber, isToday && { backgroundColor: colors.today }]}>
+                        <Text
+                          style={[
+                            styles.dayNumberText,
+                            {
+                              color: isToday
+                                ? '#FFFFFF'
+                                : !inMonth
+                                  ? colors.faint
+                                  : selected
+                                    ? colors.accentForeground
+                                    : colors.foreground,
+                            },
+                          ]}
+                        >
+                          {date.getDate()}
                         </Text>
-                      ) : null}
+                      </View>
+                      <View style={styles.dayDots}>
+                        {dayEvents.slice(0, 3).map((event) => (
+                          <View
+                            key={event.id}
+                            style={[styles.dayDot, { backgroundColor: eventColor(event) }]}
+                          />
+                        ))}
+                        {dayEvents.length > 3 ? (
+                          <Text style={[styles.dayMore, { color: colors.mutedForeground }]}>
+                            +{dayEvents.length - 3}
+                          </Text>
+                        ) : null}
+                      </View>
                     </View>
                   </Pressable>
                 );
@@ -824,6 +826,11 @@ export default function CalendarScreen() {
 
         <View style={styles.agendaHeader}>
           <View>
+            {view === 'month' ? (
+              <Text style={[styles.dayKicker, { color: colors.todayText }]}>
+                {new Intl.DateTimeFormat(dateLocale(), { weekday: 'long' }).format(parseLocalDate(selectedDate) ?? new Date()).toUpperCase()}
+              </Text>
+            ) : null}
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
               {view === 'month' ? dateTitle(selectedDate) : t('This month')}
             </Text>
@@ -1817,15 +1824,17 @@ const styles = StyleSheet.create({
   groupLabel: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: -5 },
   groupLabelText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   eventDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
-  calendarCard: { borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
-  weekdayRow: { flexDirection: 'row', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: 'transparent' },
-  weekday: { width: '14.2857%', textAlign: 'center', fontSize: 10, fontFamily: 'Inter_600SemiBold' },
-  dayGrid: { flexDirection: 'row', flexWrap: 'wrap', borderTopWidth: 1, borderLeftWidth: 1 },
-  dayCell: { width: '14.2857%', height: 54, borderRightWidth: 1, borderBottomWidth: 1, alignItems: 'center', paddingTop: 5 },
+  calendarCard: { borderRadius: 20, borderWidth: 1, overflow: 'hidden', paddingHorizontal: 6, paddingBottom: 6 },
+  weekdayRow: { flexDirection: 'row', paddingTop: 10, paddingBottom: 6 },
+  weekday: { width: '14.2857%', textAlign: 'center', fontSize: 11, fontFamily: 'Inter_700Bold' },
+  dayGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  daySlot: { width: '14.2857%', padding: 2.5 },
+  dayCell: { height: 52, borderRadius: 12, borderWidth: 1, alignItems: 'center', paddingTop: 4 },
   dayNumber: { minWidth: 24, height: 24, paddingHorizontal: 4, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  dayNumberText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  dayNumberText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
   dayDots: { height: 12, marginTop: 3, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
-  dayDot: { width: 4, height: 4, borderRadius: 2 },
+  dayDot: { width: 5, height: 5, borderRadius: 3 },
+  dayKicker: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.2, marginBottom: 2 },
   dayMore: { fontSize: 7, fontFamily: 'Inter_600SemiBold' },
   agendaHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 3 },
   seeSchedule: { flexDirection: 'row', alignItems: 'center', gap: 5 },

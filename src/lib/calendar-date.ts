@@ -137,3 +137,10 @@ export function lastSeenShort(iso: string | null | undefined, now: number, onlin
   const sameYear = then.getFullYear() === today.getFullYear();
   return new Intl.DateTimeFormat(dateLocale(), sameYear ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' }).format(then);
 }
+
+/** The month's weeks only: monthGrid without a last week that lies wholly in the next month. */
+export function monthWeeks(cursor: Date): Date[] {
+  const grid = monthGrid(cursor);
+  while (grid.length > 35 && grid.slice(-7).every((d) => d.getMonth() !== cursor.getMonth())) grid.splice(-7, 7);
+  return grid;
+}

@@ -508,5 +508,22 @@ export const ar: Record<string, string> = {
   "Write what to remind you about.": "اكتب ما تريد التذكير به.",
   "Choose a date and time.": "اختر التاريخ والوقت.",
   "That time has already passed. Choose a later time.": "هذا الوقت مضى بالفعل. اختر وقتًا لاحقًا.",
-  "Event reminders ring in the phone app. On the web, allowed alerts arrive as browser notifications, even with the tab closed.": "تنبيهات الفعاليات تعمل في تطبيق الهاتف. على الويب تصلك التنبيهات المسموح بها كإشعارات من المتصفح حتى والتبويب مغلق."
+  "Event reminders ring in the phone app. On the web, allowed alerts arrive as browser notifications, even with the tab closed.": "تنبيهات الفعاليات تعمل في تطبيق الهاتف. على الويب تصلك التنبيهات المسموح بها كإشعارات من المتصفح حتى والتبويب مغلق.",
+  "{name} Calendar": "تقويم {name}",
+  "{n} min": "{n} دقيقة",
+  "{h} hr {m} min": "{h} س {m} د",
+  "{n} hr": "{n} ساعة",
+  "{n} event scheduled": "حدث واحد مجدول",
+  "{n} events scheduled": "{n} أحداث مجدولة",
+  "{n} events scheduled|zero": "لا أحداث مجدولة",
+  "{n} events scheduled|one": "حدث واحد مجدول",
+  "{n} events scheduled|two": "حدثان مجدولان",
+  "{n} events scheduled|few": "{n} أحداث مجدولة",
+  "{n} events scheduled|many": "{n} حدثًا مجدولًا",
+  "Search events, people, departments…": "ابحث في الأحداث والأشخاص والأقسام…",
+  "Search": "بحث",
+  "Clear": "مسح",
+  "Nothing found for “{q}”.": "لا نتائج لـ «{q}».",
+  "Assign a task": "إسناد مهمة",
+  "Show calendar": "عرض التقويم"
 };

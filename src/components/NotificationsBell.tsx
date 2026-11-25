@@ -34,13 +34,13 @@ export function NotificationsBell({ onOpenEvent }: { onOpenEvent: (eventId: stri
       <Pressable
         testID="notifications-bell"
         onPress={() => setOpen(true)}
-        style={({ pressed }) => [styles.bell, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.85 : 1 }]}
+        style={({ pressed }) => [styles.bell, { backgroundColor: colors.iconSurface, borderColor: colors.iconSurface, opacity: pressed ? 0.85 : 1 }]}
         accessibilityRole="button"
         accessibilityLabel={unread ? t('Notifications, {n} unread', { n: unread }) : t('Notifications')}
       >
         <Feather name="bell" size={18} color={colors.secondaryForeground} />
         {unread ? (
-          <View style={[styles.badge, { backgroundColor: colors.destructive, borderColor: colors.background }]}>
+          <View style={[styles.badge, { backgroundColor: colors.today, borderColor: colors.card }]}>
             <Text style={styles.badgeText}>{unread > 9 ? '9+' : unread}</Text>
           </View>
         ) : null}
