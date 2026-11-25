@@ -1,48 +1,36 @@
 -- =====================================================================
---  "Specific team" visibility.
+--  "Specific team" visibility (additive change: nothing is dropped).
+--  Applied to the live database on 2026-11-25 as migration "specific_team".
 --
 --  An event keeps its owner team in group_id (who manages and approves
---  it). With visibility = 'team' it is also shown to the members of one
---  chosen team, stored in shared_group_id.
+--  it). Team visibility ('group') now shows the event to:
+--    shared_group_id is null  -> its own team          ("My team")
+--    shared_group_id is set   -> that one chosen team  ("Specific team")
 --
 --  Visibility options in the app:
---    private  Only me
---    group    My team          (the event's own team)
---    team     Specific team    (shared_group_id)
---    company  Everyone
+--    private                      Only me
+--    group, no shared_group_id    My team
+--    group, shared_group_id       Specific team
+--    company                      Everyone
 -- =====================================================================
 
-alter table public.assignments add column shared_group_id uuid;
+alter table public.assignments add column if not exists shared_group_id uuid;
 
--- The chosen team must belong to the same company.
+-- The chosen team must belong to the same company. If it is deleted, the
+-- event falls back to its own team.
 alter table public.assignments
   add constraint assignments_shared_group_fkey
   foreign key (org_id, shared_group_id) references public.groups (org_id, id)
   on delete set null (shared_group_id);
 
-alter table public.assignments drop constraint assignments_visibility_check;
-alter table public.assignments add constraint assignments_visibility_check
-  check (visibility in ('private', 'group', 'team', 'company'));
-
 create index if not exists assignments_org_shared_group_idx
   on public.assignments (org_id, shared_group_id, date);
 
--- Keep shared_group_id consistent with the visibility choice.
--- When the chosen team is deleted, the database clears shared_group_id;
--- the event then falls back to "Only me" instead of blocking the delete.
-create function public.normalize_shared_team()
+-- A chosen team only means something for team visibility.
+create or replace function public.normalize_shared_team()
 returns trigger language plpgsql set search_path = public as $$
 begin
-  if new.visibility = 'team' then
-    if new.shared_group_id is null then
-      if tg_op = 'UPDATE' and old.shared_group_id is not null then
-        new.visibility := 'private';
-      else
-        raise exception 'SHARED_TEAM: Choose the team to share this event with.'
-          using errcode = 'P0001';
-      end if;
-    end if;
-  else
+  if new.visibility <> 'group' then
     new.shared_group_id := null;
   end if;
   return new;
@@ -53,7 +41,7 @@ revoke execute on function public.normalize_shared_team() from public, anon, aut
 create trigger t15_shared_team before insert or update on public.assignments
   for each row execute function public.normalize_shared_team();
 
--- Who can see an event: as before, plus members of the chosen team.
+-- Who can see an event: team events go to the chosen team, or the own team.
 alter policy assignments_select on public.assignments
   using (org_id = (select public.my_org()) and (
     (select public.is_super())
@@ -61,10 +49,10 @@ alter policy assignments_select on public.assignments
     or assigned_to = (select auth.uid())
     or ((select public.my_role()) = 'group_admin' and group_id = (select public.my_group()))
     or (status = 'approved' and visibility = 'company')
-    or (status = 'approved' and visibility = 'group' and group_id = (select public.my_group()))
-    or (status = 'approved' and visibility = 'team' and shared_group_id = (select public.my_group()))));
+    or (status = 'approved' and visibility = 'group'
+        and coalesce(shared_group_id, group_id) = (select public.my_group()))));
 
--- Notifications: a newly published "specific team" event notifies that team.
+-- Notifications: a newly published team event notifies the team that sees it.
 create or replace function public.notify_on_assignment()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare
@@ -97,17 +85,15 @@ begin
             new.id, new.title, new.date, v_actor, case when v_became_rejected then new.rejection_note end);
   end if;
 
-  -- newly published shared events: the own team, a chosen team, or the whole company
-  if v_became_approved and new.visibility in ('group', 'team', 'company') then
+  -- newly published shared events: the chosen or own team, or the whole company
+  if v_became_approved and new.visibility in ('group', 'company') then
     insert into public.notifications (org_id, user_id, kind, event_id, event_title, event_date, actor_id)
     select new.org_id, p.id, 'shared', new.id, new.title, new.date, v_actor
       from public.user_profiles p
      where p.org_id = new.org_id and p.is_active
        and p.id <> v_actor and p.id <> new.created_by
        and p.id is distinct from new.assigned_to
-       and (new.visibility = 'company'
-            or (new.visibility = 'group' and p.group_id = new.group_id)
-            or (new.visibility = 'team' and p.group_id = new.shared_group_id));
+       and (new.visibility = 'company' or p.group_id = coalesce(new.shared_group_id, new.group_id));
   end if;
   return null;
 end $$;

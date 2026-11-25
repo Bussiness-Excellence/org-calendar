@@ -46,6 +46,8 @@ export interface CalendarEvent {
   date: string;
   notes?: string | null;
   group_id: string;
+  /** With team visibility: the one team the event is shared with (empty = its own team). */
+  shared_group_id?: string | null;
   created_by: string;
   assigned_to?: string | null;
   visibility: 'private' | 'group' | 'company';
@@ -75,6 +77,8 @@ export interface EventDraft {
   notes: string;
   group_id: string;
   visibility: 'private' | 'group' | 'company';
+  /** Set together with visibility 'group' for "Specific team"; empty means "My team". */
+  shared_group_id: string;
   color: string;
   time_start: string;
   time_end: string;
@@ -340,6 +344,7 @@ export function CalendarProvider({ children }: PropsWithChildren) {
         notes: draft.notes.trim() || null,
         group_id: draft.group_id,
         visibility: draft.visibility,
+        shared_group_id: draft.visibility === 'group' && draft.shared_group_id ? draft.shared_group_id : null,
         color: draft.color,
         time_start: draft.time_start.trim() || null,
         time_end: draft.time_end.trim() || null,

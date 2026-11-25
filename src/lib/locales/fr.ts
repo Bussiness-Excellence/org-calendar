@@ -363,5 +363,8 @@ export const fr: Record<string, string> = {
   "Delete permanently": "Supprimer définitivement",
   "Type the organization name exactly to confirm.": "Saisissez exactement le nom de l’organisation pour confirmer.",
   "Privacy policy": "Politique de confidentialité",
-  "By creating an organization you agree to the": "En créant une organisation, vous acceptez la"
+  "By creating an organization you agree to the": "En créant une organisation, vous acceptez la",
+  "Only me": "Moi seulement",
+  "Specific team": "Une équipe précise",
+  "Share with": "Partager avec"
 };

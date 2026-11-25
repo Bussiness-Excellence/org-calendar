@@ -52,6 +52,7 @@ const emptyDraft = (date: string, groupId: string, color: string): EventDraft =>
   notes: '',
   group_id: groupId,
   visibility: 'private',
+  shared_group_id: '',
   color,
   time_start: '',
   time_end: '',
@@ -185,6 +186,7 @@ export default function CalendarScreen() {
       notes: event.notes ?? '',
       group_id: event.group_id,
       visibility: event.visibility ?? 'private',
+      shared_group_id: event.shared_group_id ?? '',
       color: event.color ?? groupColor(event.group_id),
       time_start: event.time_start?.slice(0, 5) ?? '',
       time_end: event.time_end?.slice(0, 5) ?? '',
@@ -923,6 +925,7 @@ export default function CalendarScreen() {
                   draft={draft}
                   setField={setDraftField}
                   groups={groupOptions}
+                  shareGroups={groups}
                   people={people.filter(
                     (person) =>
                       person.is_active &&
@@ -935,6 +938,7 @@ export default function CalendarScreen() {
                 <EventDetails
                   event={targetEvent}
                   groupName={groupName(targetEvent.group_id)}
+                  sharedGroupName={targetEvent.shared_group_id ? groupName(targetEvent.shared_group_id) : ''}
                   groupColor={groupColor(targetEvent.group_id)}
                   assignedName={personName(targetEvent)}
                   colors={colors}
@@ -1281,6 +1285,7 @@ function EventForm({
   draft,
   setField,
   groups,
+  shareGroups,
   people,
   colors,
   testIDPrefix,
@@ -1288,10 +1293,25 @@ function EventForm({
   draft: EventDraft;
   setField: <K extends keyof EventDraft>(key: K, value: EventDraft[K]) => void;
   groups: { id: string; name: string; color?: string | null }[];
+  /** Every team in the organization: any of them can be chosen for "Specific team". */
+  shareGroups: { id: string; name: string; color?: string | null }[];
   people: { id: string; full_name: string }[];
   colors: ReturnType<typeof useColors>;
   testIDPrefix: string;
 }) {
+  // "Specific team" is team visibility with a chosen team; "My team" is team visibility without one.
+  const visibilityChoice =
+    draft.visibility === 'group' ? (draft.shared_group_id ? 'team' : 'group') : draft.visibility;
+  const otherTeams = shareGroups.filter((group) => group.id !== draft.group_id);
+  const chooseVisibility = (value: 'private' | 'group' | 'team' | 'company') => {
+    if (value === 'team') {
+      setField('visibility', 'group');
+      setField('shared_group_id', draft.shared_group_id || otherTeams[0]?.id || shareGroups[0]?.id || '');
+    } else {
+      setField('visibility', value);
+      setField('shared_group_id', '');
+    }
+  };
   return (
     <View>
       <Text style={[styles.fieldLabel, { color: colors.secondaryForeground }]}>{t('Event name')}</Text>
@@ -1422,19 +1442,57 @@ function EventForm({
       <View style={styles.choiceWrap}>
         {(
           [
-            ['private', t('Just me')],
+            ['private', t('Only me')],
             ['group', t('My team')],
+            ['team', t('Specific team')],
             ['company', t('Everyone')],
           ] as const
         ).map(([value, label]) => (
           <ChoiceChip
             key={value}
             label={label}
-            selected={draft.visibility === value}
-            onPress={() => setField('visibility', value)}
+            selected={visibilityChoice === value}
+            onPress={() => chooseVisibility(value)}
           />
         ))}
       </View>
+
+      {visibilityChoice === 'team' ? (
+        <>
+          <Text style={[styles.fieldLabel, styles.fieldGap, { color: colors.secondaryForeground }]}>
+            {t('Share with')}
+          </Text>
+          <View style={styles.choiceWrap}>
+            {(otherTeams.length ? otherTeams : shareGroups).map((group) => {
+              const selected = draft.shared_group_id === group.id;
+              return (
+                <Pressable
+                  key={group.id}
+                  testID={`${testIDPrefix}-share-${group.id}`}
+                  onPress={() => setField('shared_group_id', group.id)}
+                  style={[
+                    styles.choiceChip,
+                    {
+                      backgroundColor: selected ? colors.accent : colors.card,
+                      borderColor: selected ? colors.primary : colors.border,
+                    },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                >
+                  <View style={[styles.eventDot, { backgroundColor: group.color || colors.primary }]} />
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.choiceText, { color: selected ? colors.primary : colors.secondaryForeground }]}
+                  >
+                    {group.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      ) : null}
 
       <Text style={[styles.fieldLabel, styles.fieldGap, { color: colors.secondaryForeground }]}>
         {t('Calendar color')}
@@ -1517,12 +1575,14 @@ function ChoiceChip({
 function EventDetails({
   event,
   groupName,
+  sharedGroupName,
   groupColor,
   assignedName,
   colors,
 }: {
   event: CalendarEvent;
   groupName: string;
+  sharedGroupName: string;
   groupColor: string;
   assignedName: string;
   colors: ReturnType<typeof useColors>;
@@ -1550,7 +1610,15 @@ function EventDetails({
       <InfoRow icon="clock" label={t('When')} value={`${dateTitle(event.date)} · ${displayTime(event.time_start)}${event.time_end ? ` – ${displayTime(event.time_end)}` : ''}`} />
       <InfoRow icon="users" label={t('Team')} value={groupName} detailColor={groupColor} />
       <InfoRow icon="user" label={t('Assigned to')} value={assignedName} />
-      <InfoRow icon="eye" label={t('Visibility')} value={event.visibility === 'company' ? t('Everyone') : event.visibility === 'group' ? t('Team') : t('Just me')} />
+      <InfoRow icon="eye" label={t('Visibility')} value={
+          event.visibility === 'company'
+            ? t('Everyone')
+            : event.visibility === 'group'
+              ? event.shared_group_id
+                ? `${t('Specific team')}: ${sharedGroupName}`
+                : t('My team')
+              : t('Only me')
+        } />
       {event.notes ? <InfoRow icon="file-text" label={t('Notes')} value={event.notes} multiline /> : null}
       {event.rejection_note ? (
         <View style={[styles.rejectionBox, { backgroundColor: colors.accent }]}>

@@ -385,5 +385,8 @@ export const ar: Record<string, string> = {
   "Delete permanently": "حذف نهائي",
   "Type the organization name exactly to confirm.": "اكتب اسم المؤسسة كما هو تمامًا للتأكيد.",
   "Privacy policy": "سياسة الخصوصية",
-  "By creating an organization you agree to the": "بإنشاء مؤسسة فإنك توافق على"
+  "By creating an organization you agree to the": "بإنشاء مؤسسة فإنك توافق على",
+  "Only me": "أنا فقط",
+  "Specific team": "فريق محدد",
+  "Share with": "مشاركة مع"
 };
