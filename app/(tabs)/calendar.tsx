@@ -78,7 +78,7 @@ export default function CalendarScreen() {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [selectedDate, setSelectedDate] = useState<string>(() => localDateString());
-  const [view, setView] = useState<CalendarView>('month');
+  const [view, setView] = useState<CalendarView>('schedule'); // phones open on the schedule
   const [groupFilter, setGroupFilter] = useState<string | null>(null);
   const [eventVisible, setEventVisible] = useState<boolean>(false);
   const [targetEvent, setTargetEvent] = useState<CalendarEvent | null>(null);
