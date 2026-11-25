@@ -525,5 +525,8 @@ export const ar: Record<string, string> = {
   "Clear": "مسح",
   "Nothing found for “{q}”.": "لا نتائج لـ «{q}».",
   "Assign a task": "إسناد مهمة",
-  "Show calendar": "عرض التقويم"
+  "Show calendar": "عرض التقويم",
+  "This week": "هذا الأسبوع",
+  "My tasks": "مهامي",
+  "Show all events": "عرض كل الأحداث"
 };

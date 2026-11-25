@@ -114,23 +114,38 @@ export function DesktopCalendar(props: DesktopCalendarProps) {
     return orderedGroups(groups).filter((g) => !g.parent_id || !ids.has(g.parent_id));
   }, [groups]);
 
+  // "My tasks": only events assigned to me
+  const me = profile?.id ?? null;
+  const [mineOnly, setMineOnly] = useState(false);
+  const shown = useMemo(() => (mineOnly && me ? events.filter((e) => e.assigned_to === me) : events), [events, mineOnly, me]);
+
   const byDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
-    for (const e of events) {
+    for (const e of shown) {
       const list = map.get(e.date);
       if (list) list.push(e);
       else map.set(e.date, [e]);
     }
     return map;
-  }, [events]);
+  }, [shown]);
 
   const inMonth = (e: CalendarEvent) => {
     const d = parseLocalDate(e.date);
     return !!d && d.getFullYear() === cursor.getFullYear() && d.getMonth() === cursor.getMonth();
   };
-  const monthEvents = events.filter(inMonth);
-  const sharedCount = monthEvents.filter((e) => e.visibility !== 'private').length;
-  const pendingCount = monthEvents.filter((e) => e.status === 'pending').length;
+  const monthEvents = shown.filter(inMonth);
+  // Sidebar counters: today, this week (Sunday to Saturday), my open tasks
+  const todayCount = events.filter((e) => e.date === today).length;
+  const thisWeek = useMemo(() => {
+    const start = weekStart(today);
+    return new Set(Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      return localDateString(d);
+    }));
+  }, [today]);
+  const weekCount = events.filter((e) => thisWeek.has(e.date)).length;
+  const myTaskCount = me ? (allEvents ?? events).filter((e) => e.assigned_to === me && e.date >= today).length : 0;
   const weekDays = useMemo(() => {
     const start = weekStart(selectedDate);
     return Array.from({ length: 7 }, (_, i) => {
@@ -308,14 +323,35 @@ export function DesktopCalendar(props: DesktopCalendarProps) {
         <ScrollView style={[styles.sidebar, { backgroundColor: colors.card, borderColor: colors.border }, panelShadow(colors)]} contentContainerStyle={styles.sidebarContent}>
           <View style={styles.statRow}>
             {[
-              { n: monthEvents.length, label: t('Events'), color: colors.highlight },
-              { n: sharedCount, label: t('Shared'), color: colors.foreground },
-              { n: pendingCount, label: t('Pending'), color: colors.todayText },
+              {
+                key: 'today', n: todayCount, label: t('Today'), color: colors.todayText, active: false,
+                onPress: () => { goToday(); },
+              },
+              {
+                key: 'week', n: weekCount, label: t('This week'), color: colors.highlight, active: false,
+                onPress: () => { goToday(); setMode('week'); },
+              },
+              {
+                key: 'mine', n: myTaskCount, label: t('My tasks'), color: colors.foreground, active: mineOnly,
+                onPress: () => { setMineOnly((v) => !v); setMode('list'); },
+              },
             ].map((s) => (
-              <View key={s.label} style={[styles.stat, { borderColor: colors.border, backgroundColor: colors.statSurface }]}>
+              <Pressable
+                key={s.key}
+                testID={`stat-${s.key}`}
+                onPress={s.onPress}
+                style={({ pressed }) => [
+                  styles.stat,
+                  { borderColor: s.active ? colors.highlight : colors.border, backgroundColor: s.active ? colors.accent : colors.statSurface },
+                  pressed && { opacity: 0.8 },
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: s.active }}
+                accessibilityLabel={`${s.label}: ${s.n}`}
+              >
                 <Text style={[styles.statNum, { color: s.color }]}>{s.n}</Text>
                 <Text numberOfLines={1} style={[styles.statLabel, { color: colors.mutedForeground }]}>{s.label.toUpperCase()}</Text>
-              </View>
+              </Pressable>
             ))}
           </View>
 
@@ -389,8 +425,15 @@ export function DesktopCalendar(props: DesktopCalendarProps) {
         {/* Main panel */}
         <ScrollView style={[styles.main, { backgroundColor: colors.card, borderColor: colors.border }, panelShadow(colors)]} contentContainerStyle={styles.mainContent}>
           {banner}
-          {groupFilter || reviewQueue.length > 0 ? (
+          {groupFilter || mineOnly || reviewQueue.length > 0 ? (
             <View style={styles.chipRow}>
+              {mineOnly ? (
+                <Pressable testID="chip-mine" onPress={() => setMineOnly(false)} style={[styles.chip, { borderColor: colors.highlight, backgroundColor: colors.accent }]} accessibilityRole="button" accessibilityLabel={t('Show all events')}>
+                  <Feather name="check-square" size={13} color={colors.accentForeground} />
+                  <Text style={[styles.chipText, { color: colors.accentForeground }]}>{t('My tasks')}</Text>
+                  <Feather name="x" size={13} color={colors.accentForeground} />
+                </Pressable>
+              ) : null}
               {groupFilter ? (
                 <Pressable onPress={() => setGroupFilter(null)} style={[styles.chip, { borderColor: colors.highlight, backgroundColor: colors.accent }]} accessibilityRole="button" accessibilityLabel={t('All departments')}>
                   <Feather name="filter" size={13} color={colors.accentForeground} />
@@ -910,7 +953,7 @@ const styles = StyleSheet.create({
   statRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   stat: { flex: 1, borderWidth: 1, borderRadius: 14, paddingVertical: 12, alignItems: 'center', gap: 2 },
   statNum: { fontSize: 22, fontFamily: 'Inter_700Bold' },
-  statLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.8 },
+  statLabel: { fontSize: 9.5, fontFamily: 'Inter_700Bold', letterSpacing: 0.6 },
   mini: { marginBottom: 12 },
   miniHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, paddingHorizontal: 2 },
   miniTitle: { fontSize: 13, fontFamily: 'Inter_700Bold' },

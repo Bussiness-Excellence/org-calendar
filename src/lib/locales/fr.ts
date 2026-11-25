@@ -483,5 +483,8 @@ export const fr: Record<string, string> = {
   "Clear": "Effacer",
   "Nothing found for “{q}”.": "Aucun résultat pour « {q} ».",
   "Assign a task": "Attribuer une tâche",
-  "Show calendar": "Voir le calendrier"
+  "Show calendar": "Voir le calendrier",
+  "This week": "Cette semaine",
+  "My tasks": "Mes tâches",
+  "Show all events": "Afficher tous les événements"
 };
