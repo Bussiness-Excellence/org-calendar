@@ -507,5 +507,6 @@ export const ar: Record<string, string> = {
   "Save reminder": "حفظ التذكير",
   "Write what to remind you about.": "اكتب ما تريد التذكير به.",
   "Choose a date and time.": "اختر التاريخ والوقت.",
-  "That time has already passed. Choose a later time.": "هذا الوقت مضى بالفعل. اختر وقتًا لاحقًا."
+  "That time has already passed. Choose a later time.": "هذا الوقت مضى بالفعل. اختر وقتًا لاحقًا.",
+  "Event reminders ring in the phone app. On the web, allowed alerts arrive as browser notifications, even with the tab closed.": "تنبيهات الفعاليات تعمل في تطبيق الهاتف. على الويب تصلك التنبيهات المسموح بها كإشعارات من المتصفح حتى والتبويب مغلق."
 };

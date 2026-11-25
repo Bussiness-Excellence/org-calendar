@@ -470,5 +470,6 @@ export const fr: Record<string, string> = {
   "Save reminder": "Enregistrer le rappel",
   "Write what to remind you about.": "Écrivez de quoi vous rappeler.",
   "Choose a date and time.": "Choisissez une date et une heure.",
-  "That time has already passed. Choose a later time.": "Cette heure est déjà passée. Choisissez plus tard."
+  "That time has already passed. Choose a later time.": "Cette heure est déjà passée. Choisissez plus tard.",
+  "Event reminders ring in the phone app. On the web, allowed alerts arrive as browser notifications, even with the tab closed.": "Les rappels d’événements sonnent dans l’application mobile. Sur le web, les alertes autorisées arrivent en notifications du navigateur, même onglet fermé."
 };

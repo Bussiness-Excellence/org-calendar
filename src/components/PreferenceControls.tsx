@@ -101,7 +101,7 @@ export function PreferencesCard({
           <Text style={[styles.rowCopy, { color: colors.mutedForeground }]}>
             {remindersSupported
               ? t('30 minutes before your timed events, and at 8:00 on the day of all-day ones.')
-              : t('Reminders work in the phone app. On the web you get alerts for new notifications while the calendar is open.')}
+              : t('Event reminders ring in the phone app. On the web, allowed alerts arrive as browser notifications, even with the tab closed.')}
           </Text>
         </View>
         <Switch
