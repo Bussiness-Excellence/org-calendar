@@ -596,7 +596,7 @@ export function DesktopCalendar(props: DesktopCalendarProps) {
                         accessibilityRole="button"
                       >
                         <Text numberOfLines={2} style={[styles.tlTitle, { color: colors.foreground }]}>{e.title}</Text>
-                        <Text numberOfLines={1} style={[styles.tlMeta, { color: colors.mutedForeground }]}>
+                        <Text numberOfLines={2} style={[styles.tlMeta, { color: colors.mutedForeground }]}>
                           {[groupName(e.group_id), dur].filter(Boolean).join(' · ')}
                           {waiting ? ` · ${t('Pending')}` : ''}
                         </Text>
@@ -612,7 +612,7 @@ export function DesktopCalendar(props: DesktopCalendarProps) {
                             ))}
                           </View>
                           {e.created_at ? (
-                            <Text numberOfLines={1} style={[styles.tlAdded, { color: colors.mutedForeground }]}>
+                            <Text numberOfLines={2} style={[styles.tlAdded, { color: colors.mutedForeground }]}>
                               {t('Added {when}', { when: shortStampLabel(e.created_at) })}
                             </Text>
                           ) : null}
@@ -978,8 +978,8 @@ const styles = StyleSheet.create({
   pill: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   pillText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   emptyText: { fontSize: 13, textAlign: 'center', paddingHorizontal: 18, paddingVertical: 6 },
-  side: { width: 300, flexGrow: 0, borderRadius: 20, borderWidth: 1 },
-  sideContent: { padding: 20, gap: 4 },
+  side: { width: 262, flexGrow: 0, borderRadius: 20, borderWidth: 1 },
+  sideContent: { padding: 16, gap: 4 },
   reviewBlock: { gap: 10, marginBottom: 18 },
   sideTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sideTitle: { fontSize: 13, fontFamily: 'Inter_700Bold' },
@@ -1000,9 +1000,9 @@ const styles = StyleSheet.create({
   emptyAdd: { height: 34, borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   emptyAddText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   timeline: { gap: 12 },
-  tlRow: { flexDirection: 'row', gap: 12 },
-  tlTime: { width: 58, paddingTop: 12, fontSize: 12, fontFamily: 'Inter_700Bold' },
-  tlCard: { flex: 1, minWidth: 0, borderRadius: 14, borderWidth: 1, borderStartWidth: 4, paddingVertical: 12, paddingHorizontal: 14, gap: 4 },
+  tlRow: { flexDirection: 'row', gap: 8 },
+  tlTime: { width: 50, paddingTop: 12, fontSize: 11, fontFamily: 'Inter_700Bold' },
+  tlCard: { flex: 1, minWidth: 0, borderRadius: 14, borderWidth: 1, borderStartWidth: 4, paddingVertical: 10, paddingHorizontal: 11, gap: 4 },
   tlTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', lineHeight: 19 },
   tlMeta: { fontSize: 12 },
   tlNotes: { fontSize: 11, lineHeight: 15, writingDirection: 'auto' },
