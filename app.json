@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Org Calendar",
+    "name": "Org Calender",
     "slug": "org-calendar",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -31,8 +31,8 @@
     "web": {
       "favicon": "./assets/images/icon.png",
       "output": "single",
-      "name": "Org Calendar: Organization departments and sections",
-      "shortName": "Org Calendar",
+      "name": "Org Calender: Organization departments and sections",
+      "shortName": "Org Calender",
       "themeColor": "#0B4D89",
       "backgroundColor": "#EEF2F6"
     },

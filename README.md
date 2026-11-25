@@ -1,4 +1,4 @@
-# Org Calendar
+# Org Calender
 
 A shared calendar for organizations. Any company signs up in the app with its
 own name, logo and super admin, and starts with an empty calendar that only
@@ -22,7 +22,7 @@ its own people can see.
 ## Links
 
 - Web app: https://org-calendar.vercel.app (also https://bussiness-excellence.github.io/org-calendar/)
-- Android APK (latest): https://github.com/Bussiness-Excellence/org-calendar/releases/latest/download/OrgCalendar.apk
+- Android APK (latest): https://github.com/Bussiness-Excellence/org-calendar/releases/latest/download/OrgCalender.apk
 
 Both are rebuilt automatically on every push to `main` (see `.github/workflows/`).
 
