@@ -41,7 +41,7 @@ jobs:
       - name: Single-page app fallback
         run: cp dist/index.html dist/404.html && touch dist/.nojekyll
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: dist
       - id: deploy
