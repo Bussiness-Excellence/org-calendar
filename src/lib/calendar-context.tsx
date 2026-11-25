@@ -22,6 +22,8 @@ export interface CalendarGroup {
   name: string;
   color: string;
   sort_order: number;
+  /** Set for a sub-group: the department it belongs to. Empty for a department. */
+  parent_id?: string | null;
 }
 
 export interface CalendarPerson {
@@ -139,23 +141,34 @@ export function isSuperAdmin(profile: CalendarProfile | null): boolean {
   return profile?.role === 'super_admin';
 }
 
-export function canManageGroup(profile: CalendarProfile | null, groupId: string): boolean {
-  return (
-    isSuperAdmin(profile) ||
-    (profile?.role === 'group_admin' && !!profile.group_id && profile.group_id === groupId)
-  );
+/** A super admin, the team's manager, or the manager of the team's department. */
+export function canManageGroup(profile: CalendarProfile | null, groupId: string, groups: CalendarGroup[] = []): boolean {
+  if (isSuperAdmin(profile)) return true;
+  if (profile?.role !== 'group_admin' || !profile.group_id) return false;
+  if (profile.group_id === groupId) return true;
+  return groups.find((group) => group.id === groupId)?.parent_id === profile.group_id;
 }
 
 export function canEditEvent(
   profile: CalendarProfile | null,
   userId: string | null,
   event: CalendarEvent,
+  groups: CalendarGroup[] = [],
 ): boolean {
-  return event.created_by === userId || canManageGroup(profile, event.group_id);
+  return event.created_by === userId || canManageGroup(profile, event.group_id, groups);
 }
 
-export function roleLabel(role: Role | undefined): string {
-  return role === 'super_admin' ? t('Super admin') : role === 'group_admin' ? t('Team manager') : t('Member');
+/**
+ * "Department manager" / "Sub-group manager" when the person's team is known
+ * (`group`), otherwise "Team manager".
+ */
+export function roleLabel(role: Role | undefined, group?: Pick<CalendarGroup, 'parent_id'> | null): string {
+  if (role === 'super_admin') return t('Super admin');
+  if (role === 'group_admin') {
+    if (!group) return t('Team manager');
+    return group.parent_id ? t('Sub-group manager') : t('Department manager');
+  }
+  return t('Member');
 }
 
 export function initialsFor(name?: string | null, fallback = '?'): string {

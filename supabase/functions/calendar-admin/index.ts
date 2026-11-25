@@ -301,15 +301,18 @@ Deno.serve(async (req) => {
         if (password.length < 6) return fail('The temporary password must be at least 6 characters.');
         if (!ROLES.includes(role)) return fail('Unknown role.');
 
+        // Everyone but a super admin needs a department or sub-group; for a
+        // super admin it is optional (e.g. a director shown under a department).
         let groupId: string | null = null;
-        if (role !== 'super_admin') {
+        if (payload.group_id) {
           const team = await teamInOrg(payload.group_id);
-          if (!team) return fail('Pick a team for this person.');
+          if (!team) return fail('That department or sub-group no longer exists.');
           groupId = team.id as string;
-          if (role === 'group_admin') {
-            const clash = await managerClash(team.id as string);
-            if (clash) return fail(`${clash} already manages that team.`, 409);
-          }
+        }
+        if (role !== 'super_admin' && !groupId) return fail('Pick a department or sub-group for this person.');
+        if (role === 'group_admin' && groupId) {
+          const clash = await managerClash(groupId);
+          if (clash) return fail(`${clash} already manages that department or sub-group.`, 409);
         }
 
         const plan = await orgPlan(admin, orgId);
@@ -360,14 +363,13 @@ Deno.serve(async (req) => {
         let nextGroup: string | null = target.group_id;
         if (payload.group_id !== undefined) {
           const team = payload.group_id ? await teamInOrg(payload.group_id) : null;
-          if (payload.group_id && !team) return fail('That team no longer exists.');
+          if (payload.group_id && !team) return fail('That department or sub-group no longer exists.');
           nextGroup = team?.id ?? null;
         }
-        if (nextRole === 'super_admin') nextGroup = null;
-        else if (!nextGroup) return fail('Pick a team for this person.');
+        if (nextRole !== 'super_admin' && !nextGroup) return fail('Pick a department or sub-group for this person.');
         if (nextRole === 'group_admin' && nextGroup) {
           const clash = await managerClash(nextGroup, target.id);
-          if (clash) return fail(`${clash} already manages that team.`, 409);
+          if (clash) return fail(`${clash} already manages that department or sub-group.`, 409);
         }
         patch.role = nextRole;
         patch.group_id = nextGroup;

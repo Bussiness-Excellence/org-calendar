@@ -22,7 +22,8 @@ import {
 } from '@/lib/calendar-date';
 import { backIcon, dateLocale, forwardIcon, t, tn } from '@/lib/i18n';
 import { usePreferences } from '@/lib/preferences';
-import { TeamMemberList, memberCountLabel, teamMembers } from '@/components/TeamMembers';
+import { TeamMemberList, memberCountLabel } from '@/components/TeamMembers';
+import { membersOf, orderedGroups, subGroupsOf } from '@/lib/departments';
 
 type Colors = ReturnType<typeof useColors>;
 type Mode = 'month' | 'week' | 'list';
@@ -34,6 +35,9 @@ export interface DesktopCalendarProps {
   groups: CalendarGroup[];
   /** Everyone in the organization, for the member counts and lists in the sidebar. */
   people: CalendarPerson[];
+  /** Opens the "Assign task" window for a member (managers only). */
+  onAssign?: (person: CalendarPerson) => void;
+  canAssign?: (person: CalendarPerson) => boolean;
   /** Events this person may see, already filtered by the selected team. */
   events: CalendarEvent[];
   groupFilter: string | null;
@@ -85,11 +89,16 @@ export function DesktopCalendar(props: DesktopCalendarProps) {
   const { setThemeMode } = usePreferences();
   const [mode, setMode] = useState<Mode>('month');
   const {
-    org, profile, showAdmin, groups, people, events, groupFilter, setGroupFilter, cursor, setCursor,
+    org, profile, showAdmin, groups, people, onAssign, canAssign, events, groupFilter, setGroupFilter, cursor, setCursor,
     selectedDate, setSelectedDate, reviewQueue, approvalsOn, busy, banner,
     onNewEvent, onOpenEvent, onApprove, onSendBack, onBellOpen, eventColor, groupName, personName,
   } = props;
   const today = localDateString();
+  // Departments (and sub-groups whose department this person cannot see) at the top level.
+  const topGroups = useMemo(() => {
+    const ids = new Set(groups.map((g) => g.id));
+    return orderedGroups(groups).filter((g) => !g.parent_id || !ids.has(g.parent_id));
+  }, [groups]);
 
   const byDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
@@ -235,7 +244,7 @@ export function DesktopCalendar(props: DesktopCalendarProps) {
             ))}
           </View>
 
-          <Text style={[styles.sideHeading, { color: colors.mutedForeground }]}>{t('Teams')}</Text>
+          <Text style={[styles.sideHeading, { color: colors.mutedForeground }]}>{t('Departments')}</Text>
           <Pressable
             onPress={() => setGroupFilter(null)}
             style={[styles.groupRow, groupFilter === null && { backgroundColor: colors.accent }]}
@@ -243,29 +252,72 @@ export function DesktopCalendar(props: DesktopCalendarProps) {
             accessibilityState={{ selected: groupFilter === null }}
           >
             <Feather name="grid" size={14} color={colors.primary} />
-            <Text numberOfLines={1} style={[styles.groupName, { color: colors.foreground }]}>{t('All teams')}</Text>
+            <Text numberOfLines={1} style={[styles.groupName, { color: colors.foreground }]}>{t('All departments')}</Text>
           </Pressable>
-          {groups.map((g) => {
-            const members = teamMembers(people, g.id);
-            const open = groupFilter === g.id;
+          {topGroups.map((dept) => {
+            const subs = subGroupsOf(groups, dept.id);
+            const deptSelected = groupFilter === dept.id;
+            const open = deptSelected || subs.some((sub) => sub.id === groupFilter);
+            const total = membersOf(people, groups, dept.id, true).length;
+            const deptColor = dept.color || colors.primary;
             return (
-              <View key={g.id}>
+              <View key={dept.id}>
                 <Pressable
-                  onPress={() => setGroupFilter(open ? null : g.id)}
-                  style={[styles.groupRow, open && { backgroundColor: colors.accent }]}
+                  onPress={() => setGroupFilter(deptSelected ? null : dept.id)}
+                  style={[styles.groupRow, deptSelected && { backgroundColor: colors.accent }]}
                   accessibilityRole="button"
-                  accessibilityState={{ selected: open, expanded: open }}
-                  accessibilityLabel={`${g.name}, ${memberCountLabel(members.length)}`}
+                  accessibilityState={{ selected: deptSelected, expanded: open }}
+                  accessibilityLabel={`${dept.name}, ${memberCountLabel(total)}`}
                 >
-                  <View style={[styles.groupDot, { backgroundColor: g.color || colors.primary }]} />
-                  <Text numberOfLines={1} style={[styles.groupName, { color: colors.foreground }]}>{g.name}</Text>
+                  <View style={[styles.groupDot, { backgroundColor: deptColor }]} />
+                  <Text numberOfLines={1} style={[styles.groupName, { color: colors.foreground }]}>{dept.name}</Text>
                   <View style={styles.memberCount}>
                     <Feather name="users" size={12} color={colors.mutedForeground} />
-                    <Text style={[styles.groupCount, { color: colors.mutedForeground }]}>{members.length}</Text>
+                    <Text style={[styles.groupCount, { color: colors.mutedForeground }]}>{total}</Text>
                   </View>
                   <Feather name={open ? 'chevron-up' : 'chevron-down'} size={14} color={colors.mutedForeground} />
                 </Pressable>
-                {open ? <TeamMemberList members={members} color={g.color || colors.primary} colors={colors} compact /> : null}
+                {open ? (
+                  <View style={styles.subTree}>
+                    {subs.map((sub) => {
+                      const subOpen = groupFilter === sub.id;
+                      const subMembers = membersOf(people, groups, sub.id);
+                      const subColor = sub.color || deptColor;
+                      return (
+                        <View key={sub.id}>
+                          <Pressable
+                            onPress={() => setGroupFilter(subOpen ? dept.id : sub.id)}
+                            style={[styles.groupRow, styles.subRow, subOpen && { backgroundColor: colors.accent }]}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: subOpen, expanded: subOpen }}
+                            accessibilityLabel={`${sub.name}, ${memberCountLabel(subMembers.length)}`}
+                          >
+                            <View style={[styles.subDot, { borderColor: subColor }]} />
+                            <Text numberOfLines={1} style={[styles.subName, { color: colors.foreground }]}>{sub.name}</Text>
+                            <View style={styles.memberCount}>
+                              <Feather name="users" size={11} color={colors.mutedForeground} />
+                              <Text style={[styles.groupCount, { color: colors.mutedForeground }]}>{subMembers.length}</Text>
+                            </View>
+                          </Pressable>
+                          {subOpen ? (
+                            <TeamMemberList members={subMembers} groups={groups} color={subColor} colors={colors} compact onAssign={onAssign} canAssign={canAssign} />
+                          ) : null}
+                        </View>
+                      );
+                    })}
+                    {deptSelected ? (
+                      <TeamMemberList
+                        members={membersOf(people, groups, dept.id)}
+                        groups={groups}
+                        color={deptColor}
+                        colors={colors}
+                        compact
+                        onAssign={onAssign}
+                        canAssign={canAssign}
+                      />
+                    ) : null}
+                  </View>
+                ) : null}
               </View>
             );
           })}
@@ -277,7 +329,7 @@ export function DesktopCalendar(props: DesktopCalendarProps) {
           <View style={styles.chipRow}>
             <View style={[styles.chip, { borderColor: colors.primary, backgroundColor: colors.accent }]}>
               <Feather name="grid" size={13} color={colors.primary} />
-              <Text style={[styles.chipText, { color: colors.primary }]}>{groupFilter ? groupName(groupFilter) : t('All teams')}</Text>
+              <Text style={[styles.chipText, { color: colors.primary }]}>{groupFilter ? groupName(groupFilter) : t('All departments')}</Text>
             </View>
             {reviewQueue.length > 0 ? (
               <View style={[styles.chip, { borderColor: colors.warning, backgroundColor: colors.warningSurface }]}>
@@ -532,6 +584,10 @@ const styles = StyleSheet.create({
   groupName: { flex: 1, fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   groupCount: { fontSize: 12, fontFamily: 'Inter_500Medium' },
   memberCount: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  subTree: { paddingStart: 12 },
+  subRow: { minHeight: 34 },
+  subDot: { width: 8, height: 8, borderRadius: 4, borderWidth: 2 },
+  subName: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium' },
   main: { flex: 1 },
   mainContent: { padding: 16, gap: 12 },
   chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },

@@ -22,7 +22,8 @@ import { DesktopCalendar } from '@/components/DesktopCalendar';
 import { NotificationsBell } from '@/components/NotificationsBell';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { TimeField, TimePanel, oneHourLater } from '@/components/TimePicker';
-import { TeamMemberList, memberCountLabel, teamMembers } from '@/components/TeamMembers';
+import { TeamMemberList, memberCountLabel } from '@/components/TeamMembers';
+import { departmentOf, findGroup, groupPath, inTree, managedGroupIds, manages, membersOf, orderedGroups } from '@/lib/departments';
 import { useColors } from '@/hooks/useColors';
 import {
   canEditEvent,
@@ -31,6 +32,8 @@ import {
   isSuperAdmin,
   useCalendar,
   type CalendarEvent,
+  type CalendarGroup,
+  type CalendarPerson,
   type EventDraft,
 } from '@/lib/calendar-context';
 import {
@@ -89,6 +92,7 @@ export default function CalendarScreen() {
   const [eventVisible, setEventVisible] = useState<boolean>(false);
   const [targetEvent, setTargetEvent] = useState<CalendarEvent | null>(null);
   const [editMode, setEditMode] = useState<boolean>(false);
+  const [assignFor, setAssignFor] = useState<CalendarPerson | null>(null);
   const [draft, setDraft] = useState<EventDraft>(() =>
     emptyDraft(localDateString(), profile?.group_id ?? '', eventPalette[0]),
   );
@@ -108,14 +112,14 @@ export default function CalendarScreen() {
     () =>
       events
         // The database already returns only what this person may see.
-        .filter((event) => !groupFilter || event.group_id === groupFilter)
+        .filter((event) => !groupFilter || inTree(groups, event.group_id, groupFilter))
         .slice()
         .sort(
           (a, b) =>
             a.date.localeCompare(b.date) ||
             (a.time_start ?? '99:99').localeCompare(b.time_start ?? '99:99'),
         ),
-    [events, groupFilter],
+    [events, groupFilter, groups],
   );
   const selectedEvents = visibleEvents.filter((event) => event.date === selectedDate);
   const monthEvents = visibleEvents.filter((event) => {
@@ -128,11 +132,16 @@ export default function CalendarScreen() {
     (event) =>
       event.status === 'pending' &&
       event.created_by !== userId &&
-      canManageGroup(profile, event.group_id),
+      canManageGroup(profile, event.group_id, groups),
   );
-  const groupOptions = elevated
-    ? groups
-    : groups.filter((group) => group.id === profile?.group_id);
+  // Teams this person can create events for and browse: everything for a super
+  // admin, the whole department for a department manager, otherwise their own team.
+  const managed = managedGroupIds(profile, groups);
+  const isManager = elevated || managed.size > 0;
+  const groupOptions = orderedGroups(
+    elevated ? groups : managed.size ? groups.filter((group) => managed.has(group.id)) : groups.filter((group) => group.id === profile?.group_id),
+  );
+  const canAssign = (person: CalendarPerson) => person.id !== userId && (elevated || manages(profile, groups, person.group_id));
 
   const changeMonth = (delta: number) => {
     const next = new Date(cursor.getFullYear(), cursor.getMonth() + delta, 1);
@@ -158,22 +167,26 @@ export default function CalendarScreen() {
     }
   };
 
-  const openNewEvent = () => {
+  const openNewEvent = (assignee?: CalendarPerson) => {
     if (!groupOptions.length) {
       setNotice(
         elevated
-          ? t('Create your first team in Admin, then add events.')
-          : t('You are not in a team yet. Ask your calendar admin to add you to one.'),
+          ? t('Create your first department in Admin, then add events.')
+          : t('You are not in a department yet. Ask your calendar admin to add you to one.'),
       );
       return;
     }
+    const preferred = assignee?.group_id ?? (isManager ? groupFilter : profile?.group_id) ?? profile?.group_id;
     const groupId =
-      (elevated ? groupFilter : profile?.group_id) ??
-      profile?.group_id ??
+      (preferred && groupOptions.some((group) => group.id === preferred) ? preferred : null) ??
       groupOptions[0]?.id ??
       '';
     setTargetEvent(null);
-    setDraft(emptyDraft(selectedDate, groupId, eventPalette[0]));
+    setAssignFor(assignee ?? null);
+    setDraft({
+      ...emptyDraft(selectedDate, groupId, groupColor(groupId)),
+      assigned_to: assignee?.id ?? '',
+    });
     setEditMode(true);
     setFormError('');
     setDeleteConfirm(false);
@@ -211,7 +224,7 @@ export default function CalendarScreen() {
       return;
     }
     if (!draft.group_id) {
-      setFormError(t('Choose a team for this event.'));
+      setFormError(t('Choose a department or sub-group for this event.'));
       return;
     }
     if (!parseLocalDate(draft.date)) {
@@ -312,8 +325,14 @@ export default function CalendarScreen() {
   const eventColor = (event: CalendarEvent) => event.color || groupColor(event.group_id);
   const groupColor = (id: string) =>
     groups.find((group) => group.id === id)?.color || eventPalette[0];
-  const groupName = (id: string) =>
-    groups.find((group) => group.id === id)?.name || t('Team');
+  const groupName = (id: string) => groupPath(groups, id, t('Department'));
+  const audienceLabel = (event: CalendarEvent) => {
+    if (event.visibility === 'company') return t('Everyone');
+    if (event.visibility !== 'group') return t('Only me');
+    const target = event.shared_group_id || event.group_id;
+    const kind = findGroup(groups, target)?.parent_id ? t('Sub-group') : t('Department');
+    return `${kind}: ${groupName(target)}`;
+  };
   const personName = (event: CalendarEvent) =>
     people.find((person) => person.id === event.assigned_to)?.full_name ||
     people.find((person) => person.id === event.created_by)?.full_name ||
@@ -321,7 +340,7 @@ export default function CalendarScreen() {
   const canReview = (event: CalendarEvent) =>
     event.status === 'pending' &&
     event.created_by !== userId &&
-    canManageGroup(profile, event.group_id);
+    canManageGroup(profile, event.group_id, groups);
 
   const topInset = Platform.OS === 'web' ? 16 : insets.top;
   const { width: windowWidth } = useWindowDimensions();
@@ -347,16 +366,16 @@ export default function CalendarScreen() {
       {!dataLoading && !dataError && elevated && groups.length === 0 ? (
         <View style={[styles.errorBanner, { backgroundColor: colors.accent }]}>
           <Feather name="flag" size={15} color={colors.primary} />
-          <Text style={[styles.noticeText, { color: colors.foreground }]}>{t('Start by creating your teams, then add the people who work in them.')}</Text>
+          <Text style={[styles.noticeText, { color: colors.foreground }]}>{t('Start by creating your departments, then add the people who work in them.')}</Text>
           <Pressable onPress={() => router.push('/admin' as Href)} accessibilityRole="button">
-            <Text style={[styles.retryText, { color: colors.primary }]}>{t('Set up teams')}</Text>
+            <Text style={[styles.retryText, { color: colors.primary }]}>{t('Set up departments')}</Text>
           </Pressable>
         </View>
       ) : null}
       {!dataLoading && !elevated && !profile?.group_id ? (
         <View style={[styles.errorBanner, { backgroundColor: colors.warningSurface }]}>
           <Feather name="info" size={15} color={colors.warning} />
-          <Text style={[styles.noticeText, { color: colors.warning }]}>{t('You are not in a team yet, so you can see events but not add them. Ask your calendar admin to add you to a team.')}</Text>
+          <Text style={[styles.noticeText, { color: colors.warning }]}>{t('You are not in a department yet, so you can see events but not add them. Ask your calendar admin to add you to one.')}</Text>
         </View>
       ) : null}
     </>
@@ -369,8 +388,10 @@ export default function CalendarScreen() {
           org={org}
           profile={profile}
           showAdmin={elevated || !!org?.is_platform_admin}
-          groups={elevated ? groups : groups.filter((group) => group.id === profile?.group_id)}
+          groups={groupOptions}
           people={people}
+          onAssign={(person) => openNewEvent(person)}
+          canAssign={canAssign}
           events={visibleEvents}
           groupFilter={groupFilter}
           setGroupFilter={setGroupFilter}
@@ -382,7 +403,7 @@ export default function CalendarScreen() {
           approvalsOn={approvalsOn}
           busy={busy}
           banner={desktopBanner}
-          onNewEvent={openNewEvent}
+          onNewEvent={() => openNewEvent()}
           onOpenEvent={openEvent}
           onApprove={(event) => void approve(event)}
           onSendBack={openReject}
@@ -439,7 +460,7 @@ export default function CalendarScreen() {
             />
             <Pressable
               testID="new-event"
-              onPress={openNewEvent}
+              onPress={() => openNewEvent()}
               style={({ pressed }) => [
                 styles.addButton,
                 { backgroundColor: colors.primary, opacity: pressed ? 0.84 : 1 },
@@ -577,7 +598,7 @@ export default function CalendarScreen() {
                 {t('Welcome to {name}', { name: org?.name ?? '' })}
               </Text>
               <Text style={[styles.sectionMeta, { color: colors.mutedForeground }]}>
-                {t('Start by creating your teams, then add the people who work in them.')}
+                {t('Start by creating your departments, then add the people who work in them.')}
               </Text>
               <Pressable
                 testID="open-admin-setup"
@@ -585,7 +606,7 @@ export default function CalendarScreen() {
                 style={[styles.setupButton, { backgroundColor: colors.primary }]}
                 accessibilityRole="button"
               >
-                <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>{t('Set up teams')}</Text>
+                <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>{t('Set up departments')}</Text>
                 <Feather name={arrowForward()} size={15} color={colors.primaryForeground} />
               </Pressable>
             </View>
@@ -596,7 +617,7 @@ export default function CalendarScreen() {
           <View style={[styles.errorBanner, { backgroundColor: colors.warningSurface }]}>
             <Feather name="info" size={15} color={colors.warning} />
             <Text style={[styles.noticeText, { color: colors.warning }]}>
-              {t('You are not in a team yet, so you can see events but not add them. Ask your calendar admin to add you to a team.')}
+              {t('You are not in a department yet, so you can see events but not add them. Ask your calendar admin to add you to one.')}
             </Text>
           </View>
         ) : null}
@@ -673,21 +694,21 @@ export default function CalendarScreen() {
           ))}
         </View>
 
-        {elevated ? (
+        {isManager ? (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.groupFilters}
           >
             <FilterChip
-              label={t('All teams')}
+              label={t('All departments')}
               selected={groupFilter === null}
               onPress={() => setGroupFilter(null)}
             />
-            {groups.map((group) => (
+            {groupOptions.map((group) => (
               <FilterChip
                 key={group.id}
-                label={`${group.name} · ${teamMembers(people, group.id).length}`}
+                label={`${groupName(group.id)} · ${membersOf(people, groups, group.id, true).length}`}
                 color={group.color ?? undefined}
                 selected={groupFilter === group.id}
                 onPress={() => setGroupFilter(groupFilter === group.id ? null : group.id)}
@@ -703,7 +724,7 @@ export default function CalendarScreen() {
           </View>
         ) : null}
 
-        {elevated && groupFilter ? (
+        {isManager && groupFilter ? (
           <View style={[styles.membersCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.membersHeader}>
               <View style={[styles.eventDot, { backgroundColor: groupColor(groupFilter) }]} />
@@ -711,10 +732,17 @@ export default function CalendarScreen() {
                 {groupName(groupFilter)}
               </Text>
               <Text style={[styles.membersCount, { color: colors.mutedForeground }]}>
-                {memberCountLabel(teamMembers(people, groupFilter).length)}
+                {memberCountLabel(membersOf(people, groups, groupFilter, true).length)}
               </Text>
             </View>
-            <TeamMemberList members={teamMembers(people, groupFilter)} color={groupColor(groupFilter)} colors={colors} />
+            <TeamMemberList
+              members={membersOf(people, groups, groupFilter, true)}
+              groups={groups}
+              color={groupColor(groupFilter)}
+              colors={colors}
+              onAssign={(person) => openNewEvent(person)}
+              canAssign={canAssign}
+            />
           </View>
         ) : null}
 
@@ -851,7 +879,7 @@ export default function CalendarScreen() {
               ))}
             </View>
           ) : (
-            <EmptyDay selectedDate={selectedDate} onAdd={openNewEvent} />
+            <EmptyDay selectedDate={selectedDate} onAdd={() => openNewEvent()} />
           )
         ) : monthEvents.length ? (
           <View style={styles.eventList}>
@@ -877,7 +905,7 @@ export default function CalendarScreen() {
             })}
           </View>
         ) : (
-          <EmptyDay selectedDate={selectedDate} onAdd={openNewEvent} />
+          <EmptyDay selectedDate={selectedDate} onAdd={() => openNewEvent()} />
         )}
       </ScrollView>
       )}
@@ -914,7 +942,13 @@ export default function CalendarScreen() {
               <View style={styles.sheetHeader}>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
-                    {editMode ? (targetEvent ? t('Edit event') : t('New event')) : targetEvent?.title}
+                    {editMode
+                      ? targetEvent
+                        ? t('Edit event')
+                        : assignFor && draft.assigned_to === assignFor.id
+                          ? t('Assign a task to {name}', { name: assignFor.full_name })
+                          : t('New event')
+                      : targetEvent?.title}
                   </Text>
                   {!editMode && targetEvent ? (
                     <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>
@@ -947,7 +981,8 @@ export default function CalendarScreen() {
                   people={people.filter(
                     (person) =>
                       person.is_active &&
-                      (person.group_id === draft.group_id || person.role === 'super_admin'),
+                      (inTree(groups, person.group_id, departmentOf(groups, draft.group_id)?.id ?? draft.group_id) ||
+                        person.role === 'super_admin'),
                   )}
                   colors={colors}
                   testIDPrefix="event-form"
@@ -956,7 +991,7 @@ export default function CalendarScreen() {
                 <EventDetails
                   event={targetEvent}
                   groupName={groupName(targetEvent.group_id)}
-                  sharedGroupName={targetEvent.shared_group_id ? groupName(targetEvent.shared_group_id) : ''}
+                  audience={audienceLabel(targetEvent)}
                   groupColor={groupColor(targetEvent.group_id)}
                   assignedName={personName(targetEvent)}
                   colors={colors}
@@ -1057,7 +1092,7 @@ export default function CalendarScreen() {
                         </Text>
                       </Pressable>
                     </>
-                  ) : canEditEvent(profile, userId, targetEvent) ? (
+                  ) : canEditEvent(profile, userId, targetEvent, groups) ? (
                     <>
                       <Pressable
                         onPress={() => setDeleteConfirm(true)}
@@ -1310,26 +1345,50 @@ function EventForm({
 }: {
   draft: EventDraft;
   setField: <K extends keyof EventDraft>(key: K, value: EventDraft[K]) => void;
-  groups: { id: string; name: string; color?: string | null }[];
-  /** Every team in the organization: any of them can be chosen for "Specific team". */
-  shareGroups: { id: string; name: string; color?: string | null }[];
+  groups: CalendarGroup[];
+  /** Every department and sub-group: any of them can be chosen for "Specific department or sub-group". */
+  shareGroups: CalendarGroup[];
   people: { id: string; full_name: string }[];
   colors: ReturnType<typeof useColors>;
   testIDPrefix: string;
 }) {
   const [openTime, setOpenTime] = useState<'start' | 'end' | null>(null);
-  // "Specific team" is team visibility with a chosen team; "My team" is team visibility without one.
-  const visibilityChoice =
-    draft.visibility === 'group' ? (draft.shared_group_id ? 'team' : 'group') : draft.visibility;
-  const otherTeams = shareGroups.filter((group) => group.id !== draft.group_id);
-  const chooseVisibility = (value: 'private' | 'group' | 'team' | 'company') => {
-    if (value === 'team') {
-      setField('visibility', 'group');
-      setField('shared_group_id', draft.shared_group_id || otherTeams[0]?.id || shareGroups[0]?.id || '');
-    } else {
+  // Visibility is stored as 'private' | 'group' | 'company'. Team visibility reaches
+  // shared_group_id when set, otherwise the event's own team (group_id):
+  //   My sub-group  -> own sub-group (no shared team)
+  //   My department -> own department (the parent of a sub-group; nothing extra for a department)
+  //   Specific      -> any chosen department or sub-group
+  const owner = findGroup(shareGroups, draft.group_id);
+  const ownerIsSub = !!owner?.parent_id;
+  const ownDept = departmentOf(shareGroups, draft.group_id);
+  type Choice = 'private' | 'sub' | 'dept' | 'specific' | 'company';
+  const visibilityChoice: Choice =
+    draft.visibility === 'group'
+      ? !draft.shared_group_id
+        ? ownerIsSub ? 'sub' : 'dept'
+        : ownerIsSub && draft.shared_group_id === ownDept?.id
+          ? 'dept'
+          : 'specific'
+      : draft.visibility === 'company'
+        ? 'company'
+        : 'private';
+  const shareChoices = orderedGroups(shareGroups);
+  const chooseVisibility = (value: Choice) => {
+    if (value === 'private' || value === 'company') {
       setField('visibility', value);
       setField('shared_group_id', '');
+      return;
     }
+    setField('visibility', 'group');
+    if (value === 'sub') setField('shared_group_id', '');
+    else if (value === 'dept') setField('shared_group_id', ownerIsSub ? ownDept?.id ?? '' : '');
+    else
+      setField(
+        'shared_group_id',
+        visibilityChoice === 'specific' && draft.shared_group_id
+          ? draft.shared_group_id
+          : shareChoices.find((group) => group.id !== draft.group_id && group.id !== ownDept?.id)?.id ?? shareChoices[0]?.id ?? '',
+      );
   };
   return (
     <View>
@@ -1403,7 +1462,7 @@ function EventForm({
       {groups.length ? (
         <>
           <Text style={[styles.fieldLabel, styles.fieldGap, { color: colors.secondaryForeground }]}>
-            {t('Team')}
+            {t('Department / sub-group')}
           </Text>
           <View style={styles.choiceWrap}>
             {groups.map((group) => {
@@ -1411,7 +1470,12 @@ function EventForm({
               return (
                 <Pressable
                   key={group.id}
-                  onPress={() => setField('group_id', group.id)}
+                  onPress={() => {
+                    // keep "My sub-group / My department" meaning the same after a team change
+                    if (visibilityChoice === 'sub') setField('shared_group_id', '');
+                    if (visibilityChoice === 'dept') setField('shared_group_id', group.parent_id ?? '');
+                    setField('group_id', group.id);
+                  }}
                   style={[
                     styles.choiceChip,
                     {
@@ -1435,7 +1499,7 @@ function EventForm({
                       { color: selected ? colors.primary : colors.secondaryForeground },
                     ]}
                   >
-                    {group.name}
+                    {groupPath(shareGroups, group.id, group.name)}
                   </Text>
                 </Pressable>
               );
@@ -1470,8 +1534,9 @@ function EventForm({
         {(
           [
             ['private', t('Only me')],
-            ['group', t('My team')],
-            ['team', t('Specific team')],
+            ...(ownerIsSub ? [['sub', t('My sub-group')] as const] : []),
+            ['dept', t('My department')],
+            ['specific', t('Specific department or sub-group')],
             ['company', t('Everyone')],
           ] as const
         ).map(([value, label]) => (
@@ -1484,13 +1549,13 @@ function EventForm({
         ))}
       </View>
 
-      {visibilityChoice === 'team' ? (
+      {visibilityChoice === 'specific' ? (
         <>
           <Text style={[styles.fieldLabel, styles.fieldGap, { color: colors.secondaryForeground }]}>
             {t('Share with')}
           </Text>
           <View style={styles.choiceWrap}>
-            {(otherTeams.length ? otherTeams : shareGroups).map((group) => {
+            {shareChoices.map((group) => {
               const selected = draft.shared_group_id === group.id;
               return (
                 <Pressable
@@ -1512,7 +1577,7 @@ function EventForm({
                     numberOfLines={1}
                     style={[styles.choiceText, { color: selected ? colors.primary : colors.secondaryForeground }]}
                   >
-                    {group.name}
+                    {groupPath(shareGroups, group.id, group.name)}
                   </Text>
                 </Pressable>
               );
@@ -1602,14 +1667,15 @@ function ChoiceChip({
 function EventDetails({
   event,
   groupName,
-  sharedGroupName,
+  audience,
   groupColor,
   assignedName,
   colors,
 }: {
   event: CalendarEvent;
   groupName: string;
-  sharedGroupName: string;
+  /** Who can see the event: "Only me", "Everyone", "Department: …" or "Sub-group: …". */
+  audience: string;
   groupColor: string;
   assignedName: string;
   colors: ReturnType<typeof useColors>;
@@ -1635,17 +1701,9 @@ function EventDetails({
         />
       </View>
       <InfoRow icon="clock" label={t('When')} value={`${dateTitle(event.date)} · ${displayTime(event.time_start)}${event.time_end ? ` – ${displayTime(event.time_end)}` : ''}`} />
-      <InfoRow icon="users" label={t('Team')} value={groupName} detailColor={groupColor} />
+      <InfoRow icon="users" label={t('Department')} value={groupName} detailColor={groupColor} />
       <InfoRow icon="user" label={t('Assigned to')} value={assignedName} />
-      <InfoRow icon="eye" label={t('Visibility')} value={
-          event.visibility === 'company'
-            ? t('Everyone')
-            : event.visibility === 'group'
-              ? event.shared_group_id
-                ? `${t('Specific team')}: ${sharedGroupName}`
-                : t('My team')
-              : t('Only me')
-        } />
+      <InfoRow icon="eye" label={t('Visibility')} value={audience} />
       {event.notes ? <InfoRow icon="file-text" label={t('Notes')} value={event.notes} multiline /> : null}
       {event.rejection_note ? (
         <View style={[styles.rejectionBox, { backgroundColor: colors.accent }]}>

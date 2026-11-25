@@ -26,6 +26,7 @@ import {
   type CalendarPerson,
   type Role,
 } from '@/lib/calendar-context';
+import { departmentsOf, findGroup, groupPath, inTree, membersOf, orderedGroups, subGroupsOf } from '@/lib/departments';
 import { pickLogo } from '@/lib/logo-picker';
 import { AdminError, callAdmin, supabase } from '@/lib/supabase';
 import { FREE_USER_LIMIT, UNLIMITED_USER_LIMIT, proYearlyTotal } from '@/lib/supabase-config';
@@ -311,34 +312,49 @@ function TeamsSection({ colors }: { colors: Colors }) {
   const [editing, setEditing] = useState<CalendarGroup | 'new' | null>(null);
   const [name, setName] = useState('');
   const [color, setColor] = useState(eventPalette[0]);
+  const [parent, setParent] = useState<string>('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const open = (team: CalendarGroup | 'new') => {
+  const departments = departmentsOf(groups);
+
+  /** `parentId` set: a new sub-group of that department. */
+  const open = (team: CalendarGroup | 'new', parentId = '') => {
     setEditing(team);
     setName(team === 'new' ? '' : team.name);
-    setColor(team === 'new' ? eventPalette[groups.length % eventPalette.length] : team.color || eventPalette[0]);
+    const parentColor = parentId ? groups.find((g) => g.id === parentId)?.color : undefined;
+    setColor(team === 'new' ? parentColor || eventPalette[groups.length % eventPalette.length] : team.color || eventPalette[0]);
+    setParent(team === 'new' ? parentId : team.parent_id ?? '');
     setError('');
     setConfirmDelete(false);
   };
 
+  const isSub = !!parent;
   const save = async () => {
-    if (!name.trim()) return setError(t('Give the team a name.'));
+    if (!name.trim()) return setError(isSub ? t('Give the sub-group a name.') : t('Give the department a name.'));
     setBusy(true);
     setError('');
     try {
+      const fields = { name: name.trim(), color, parent_id: parent || null };
       const result =
         editing === 'new'
-          ? await supabase.from('groups').insert({ name: name.trim(), color, sort_order: groups.length })
-          : await supabase.from('groups').update({ name: name.trim(), color }).eq('id', (editing as CalendarGroup).id);
+          ? await supabase.from('groups').insert({ ...fields, sort_order: groups.length })
+          : await supabase.from('groups').update(fields).eq('id', (editing as CalendarGroup).id);
       if (result.error) {
-        throw new Error(/duplicate|unique/i.test(result.error.message) ? t('You already have a team with that name.') : result.error.message);
+        const message = result.error.message;
+        throw new Error(
+          /duplicate|unique/i.test(message)
+            ? t('You already have a department or sub-group with that name.')
+            : message.startsWith('GROUP_PARENT:')
+              ? t('A sub-group can only sit directly under a department, and a department with sub-groups cannot become a sub-group.')
+              : message,
+        );
       }
       await refresh();
       setEditing(null);
     } catch (cause) {
-      setError(errorText(cause, t('The team could not be saved.')));
+      setError(errorText(cause, t('It could not be saved.')));
     } finally {
       setBusy(false);
     }
@@ -351,12 +367,12 @@ function TeamsSection({ colors }: { colors: Colors }) {
     try {
       const { error: delError } = await supabase.from('groups').delete().eq('id', editing.id);
       if (delError) {
-        throw new Error(/foreign key/i.test(delError.message) ? t('This team still has events. Move or delete them first.') : delError.message);
+        throw new Error(/foreign key/i.test(delError.message) ? t('It still has events. Move or delete them first.') : delError.message);
       }
       await refresh();
       setEditing(null);
     } catch (cause) {
-      setError(errorText(cause, t('The team could not be deleted.')));
+      setError(errorText(cause, t('It could not be deleted.')));
       setConfirmDelete(false);
     } finally {
       setBusy(false);
@@ -364,43 +380,102 @@ function TeamsSection({ colors }: { colors: Colors }) {
   };
 
   const target = editing && editing !== 'new' ? editing : null;
-  const memberCount = (id: string) => people.filter((p) => p.group_id === id && p.is_active).length;
-  const eventCount = (id: string) => events.filter((e) => e.group_id === id).length;
+  const targetHasSubs = !!target && subGroupsOf(groups, target.id).length > 0;
+  const memberCount = (id: string, withSubs = false) => membersOf(people, groups, id, withSubs).length;
+  const eventCount = (id: string, withSubs = false) =>
+    events.filter((e) => (withSubs ? inTree(groups, e.group_id, id) : e.group_id === id)).length;
+  const subCount = groups.length - departments.length;
+
+  const row = (team: CalendarGroup, sub: boolean) => (
+    <Pressable
+      key={team.id}
+      testID={`team-${team.name}`}
+      onPress={() => open(team)}
+      style={({ pressed }) => [styles.listRow, sub && styles.subListRow, { borderTopColor: colors.border, opacity: pressed ? 0.8 : 1 }]}
+      accessibilityRole="button"
+    >
+      {sub ? <Feather name="corner-down-right" size={14} color={colors.mutedForeground} /> : null}
+      <View style={[styles.teamSwatch, { backgroundColor: team.color || colors.primary }]} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text numberOfLines={1} style={[styles.rowTitle, { color: colors.foreground }]}>{team.name}</Text>
+        <Text style={[styles.rowMeta, { color: colors.mutedForeground }]}>
+          {tn(memberCount(team.id, !sub), '{n} person', '{n} people')} · {tn(eventCount(team.id, !sub), '{n} event', '{n} events')}
+          {!sub && subGroupsOf(groups, team.id).length
+            ? ` · ${tn(subGroupsOf(groups, team.id).length, '{n} sub-group', '{n} sub-groups')}`
+            : ''}
+        </Text>
+      </View>
+      <Feather name={forwardIcon()} size={17} color={colors.mutedForeground} />
+    </Pressable>
+  );
 
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <SectionHeader
-        title={t('Teams')}
-        meta={groups.length ? tn(groups.length, '{n} team', '{n} teams') : t('Create teams to group people and events.')}
-        action={<SmallButton testID="add-team" label={t('Add team')} icon="plus" onPress={() => open('new')} colors={colors} />}
+        title={t('Departments')}
+        meta={
+          departments.length
+            ? `${tn(departments.length, '{n} department', '{n} departments')}${subCount ? ` · ${tn(subCount, '{n} sub-group', '{n} sub-groups')}` : ''}`
+            : t('Create departments to group people and events.')
+        }
+        action={<SmallButton testID="add-team" label={t('Add department')} icon="plus" onPress={() => open('new')} colors={colors} />}
         colors={colors}
       />
-      {groups.length === 0 ? (
-        <Text style={[styles.empty, { color: colors.mutedForeground }]}>{t('No teams yet. Add your first one, for example “Sales” or “Marketing”.')}</Text>
+      {departments.length === 0 ? (
+        <Text style={[styles.empty, { color: colors.mutedForeground }]}>{t('No departments yet. Add your first one, for example “Marketing” or “Sales”.')}</Text>
       ) : (
-        groups.map((team) => (
-          <Pressable
-            key={team.id}
-            testID={`team-${team.name}`}
-            onPress={() => open(team)}
-            style={({ pressed }) => [styles.listRow, { borderTopColor: colors.border, opacity: pressed ? 0.8 : 1 }]}
-            accessibilityRole="button"
-          >
-            <View style={[styles.teamSwatch, { backgroundColor: team.color || colors.primary }]} />
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text numberOfLines={1} style={[styles.rowTitle, { color: colors.foreground }]}>{team.name}</Text>
-              <Text style={[styles.rowMeta, { color: colors.mutedForeground }]}>
-                {tn(memberCount(team.id), '{n} person', '{n} people')} · {tn(eventCount(team.id), '{n} event', '{n} events')}
-              </Text>
-            </View>
-            <Feather name={forwardIcon()} size={17} color={colors.mutedForeground} />
-          </Pressable>
+        departments.map((dept) => (
+          <View key={dept.id}>
+            {row(dept, false)}
+            {subGroupsOf(groups, dept.id).map((sub) => row(sub, true))}
+            <Pressable
+              testID={`add-sub-${dept.name}`}
+              onPress={() => open('new', dept.id)}
+              style={({ pressed }) => [styles.addSubRow, { opacity: pressed ? 0.7 : 1 }]}
+              accessibilityRole="button"
+            >
+              <Feather name="plus" size={13} color={colors.primary} />
+              <Text style={[styles.addSubText, { color: colors.primary }]}>{t('Add sub-group to {name}', { name: dept.name })}</Text>
+            </Pressable>
+          </View>
         ))
       )}
 
-      <Sheet visible={!!editing} title={editing === 'new' ? t('New team') : t('Edit team')} onClose={() => setEditing(null)} colors={colors}>
+      <Sheet
+        visible={!!editing}
+        title={
+          editing === 'new'
+            ? isSub ? t('New sub-group') : t('New department')
+            : isSub ? t('Edit sub-group') : t('Edit department')
+        }
+        onClose={() => setEditing(null)}
+        colors={colors}
+      >
         <Banner text={error} tone="error" colors={colors} />
-        <Field label={t('Team name')} colors={colors} testID="team-name" value={name} onChangeText={setName} placeholder={t('e.g. Marketing')} maxLength={80} autoCapitalize="words" />
+        <Field
+          label={isSub ? t('Sub-group name') : t('Department name')}
+          colors={colors}
+          testID="team-name"
+          value={name}
+          onChangeText={setName}
+          placeholder={isSub ? t('e.g. Group A') : t('e.g. Marketing')}
+          maxLength={80}
+          autoCapitalize="words"
+        />
+        <Text style={[styles.fieldLabel, { color: colors.secondaryForeground, marginTop: 14 }]}>{t('Belongs to')}</Text>
+        {targetHasSubs ? (
+          <Text style={[styles.hint, { color: colors.mutedForeground }]}>{t('This department has sub-groups, so it stays a department.')}</Text>
+        ) : (
+          <Chips
+            options={[
+              { value: '', label: t('Nothing (it is a department)') },
+              ...departments.filter((d) => d.id !== target?.id).map((d) => ({ value: d.id, label: d.name, color: d.color })),
+            ]}
+            value={parent}
+            onChange={setParent}
+            colors={colors}
+          />
+        )}
         <Text style={[styles.fieldLabel, { color: colors.secondaryForeground, marginTop: 14 }]}>{t('Color')}</Text>
         <View style={styles.colorRow}>
           {eventPalette.map((c) => (
@@ -409,7 +484,7 @@ function TeamsSection({ colors }: { colors: Colors }) {
               onPress={() => setColor(c)}
               style={[styles.colorChoice, { backgroundColor: c }, color === c && { borderColor: colors.foreground, borderWidth: 2 }]}
               accessibilityRole="button"
-              accessibilityLabel={t('Team color')}
+              accessibilityLabel={t('Color')}
               accessibilityState={{ selected: color === c }}
             >
               {color === c ? <Feather name="check" size={14} color="#FFFFFF" /> : null}
@@ -418,12 +493,14 @@ function TeamsSection({ colors }: { colors: Colors }) {
         </View>
         {confirmDelete && target ? (
           <View style={[styles.confirmBox, { backgroundColor: colors.warningSurface }]}>
-            <Text style={[styles.rowTitle, { color: colors.foreground }]}>Delete {target.name}?</Text>
+            <Text style={[styles.rowTitle, { color: colors.foreground }]}>{t('Delete {name}?', { name: target.name })}</Text>
             <Text style={[styles.rowMeta, { color: colors.secondaryForeground }]}>
-              Its {memberCount(target.id)} people will have no team until you move them.
+              {targetHasSubs
+                ? t('Its sub-groups are deleted too. Their {n} people will have no department until you move them.', { n: memberCount(target.id, true) })
+                : t('Its {n} people will have no department until you move them.', { n: memberCount(target.id) })}
             </Text>
             <View style={styles.actions}>
-              <SmallButton label={t('Keep team')} tone="quiet" onPress={() => setConfirmDelete(false)} colors={colors} />
+              <SmallButton label={t('Keep it')} tone="quiet" onPress={() => setConfirmDelete(false)} colors={colors} />
               <SmallButton testID="confirm-delete-team" label={t('Delete')} tone="danger" onPress={() => void remove()} colors={colors} disabled={busy} />
             </View>
           </View>
@@ -431,7 +508,7 @@ function TeamsSection({ colors }: { colors: Colors }) {
           <View style={styles.actions}>
             {target ? <SmallButton label={t('Delete')} icon="trash-2" tone="quiet" onPress={() => setConfirmDelete(true)} colors={colors} /> : null}
             <View style={{ flex: 1 }} />
-            <SmallButton testID="save-team" label={busy ? t('Saving…') : t('Save team')} icon="check" onPress={() => void save()} colors={colors} disabled={busy} />
+            <SmallButton testID="save-team" label={busy ? t('Saving…') : t('Save')} icon="check" onPress={() => void save()} colors={colors} disabled={busy} />
           </View>
         )}
       </Sheet>
@@ -475,7 +552,7 @@ function PeopleSection({ colors }: { colors: Colors }) {
     return people.filter((p) => !q || p.full_name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q));
   }, [people, search]);
 
-  const teamName = (id: string | null) => groups.find((g) => g.id === id)?.name;
+  const teamName = (id: string | null) => (id ? groupPath(groups, id) || undefined : undefined);
   const atLimit = !!org && !org.pro_active && org.active_users >= org.user_limit;
 
   const open = (person: CalendarPerson | 'new') => {
@@ -487,7 +564,14 @@ function PeopleSection({ colors }: { colors: Colors }) {
     setDraft(
       person === 'new'
         ? { full_name: '', email: '', title: '', role: 'user', group_id: groups[0]?.id ?? '', password: tempPassword() }
-        : { full_name: person.full_name, email: person.email, title: person.title ?? '', role: person.role, group_id: person.group_id ?? groups[0]?.id ?? '', password: '' },
+        : {
+            full_name: person.full_name,
+            email: person.email,
+            title: person.title ?? '',
+            role: person.role,
+            group_id: person.group_id ?? (person.role === 'super_admin' ? '' : groups[0]?.id ?? ''),
+            password: '',
+          },
     );
   };
 
@@ -522,7 +606,7 @@ function PeopleSection({ colors }: { colors: Colors }) {
     if (editing === 'new') {
       if (draft.password.length < 6) return setError(t('The temporary password must be at least 6 characters.'));
       return run(
-        () => callAdmin('create_user', { ...draft, group_id: draft.role === 'super_admin' ? null : draft.group_id }),
+        () => callAdmin('create_user', { ...draft, group_id: draft.group_id || null }),
         t('{name} was added. Share their email and temporary password: {password}', { name: draft.full_name.trim(), password: draft.password }),
       );
     }
@@ -535,7 +619,7 @@ function PeopleSection({ colors }: { colors: Colors }) {
           email: draft.email,
           title: draft.title,
           role: draft.role,
-          group_id: draft.role === 'super_admin' ? null : draft.group_id,
+          group_id: draft.group_id || null,
         }),
       t('Changes saved.'),
     );
@@ -544,7 +628,7 @@ function PeopleSection({ colors }: { colors: Colors }) {
   const target = editing && editing !== 'new' ? editing : null;
   const roleOptions: { value: Role; label: string }[] = [
     { value: 'user', label: t('Member') },
-    { value: 'group_admin', label: t('Team manager') },
+    { value: 'group_admin', label: findGroup(groups, draft.group_id)?.parent_id ? t('Sub-group manager') : t('Department manager') },
     { value: 'super_admin', label: t('Super admin') },
   ];
 
@@ -584,8 +668,8 @@ function PeopleSection({ colors }: { colors: Colors }) {
               {person.id === userId ? ` (${t('you')})` : ''}
             </Text>
             <Text numberOfLines={1} style={[styles.rowMeta, { color: colors.mutedForeground }]}>
-              {roleLabel(person.role)}
-              {teamName(person.group_id) ? ` · ${teamName(person.group_id)}` : person.role === 'super_admin' ? '' : ` · ${t('No team')}`}
+              {roleLabel(person.role, findGroup(groups, person.group_id))}
+              {teamName(person.group_id) ? ` · ${teamName(person.group_id)}` : person.role === 'super_admin' ? '' : ` · ${t('No department')}`}
               {!person.is_active ? ` · ${t('Deactivated')}` : ''}
             </Text>
             <Text numberOfLines={1} style={[styles.rowMeta, { color: colors.mutedForeground }]}>
@@ -607,21 +691,29 @@ function PeopleSection({ colors }: { colors: Colors }) {
         <Chips options={roleOptions} value={draft.role} onChange={(v) => set('role', v)} colors={colors} />
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
           {draft.role === 'super_admin'
-            ? t('Can manage the whole organization, its teams and people.')
+            ? t('Can manage the whole organization, its departments and people.')
             : draft.role === 'group_admin'
-              ? t('Manages one team’s events and approves them on Pro.')
+              ? findGroup(groups, draft.group_id)?.parent_id
+                ? t('Manages this sub-group’s events.')
+                : t('Manages this department and all its sub-groups.')
               : t('Adds and sees their own and shared events.')}
         </Text>
-        {draft.role !== 'super_admin' ? (
-          <>
-            <Text style={[styles.fieldLabel, { color: colors.secondaryForeground, marginTop: 14 }]}>{t('Team')}</Text>
-            {groups.length ? (
-              <Chips options={groups.map((g) => ({ value: g.id, label: g.name, color: g.color }))} value={draft.group_id} onChange={(v) => set('group_id', v)} colors={colors} />
-            ) : (
-              <Text style={[styles.hint, { color: colors.warning }]}>{t('Create a team first.')}</Text>
-            )}
-          </>
-        ) : null}
+        <Text style={[styles.fieldLabel, { color: colors.secondaryForeground, marginTop: 14 }]}>
+          {draft.role === 'super_admin' ? t('Department or sub-group (optional)') : t('Department or sub-group')}
+        </Text>
+        {groups.length ? (
+          <Chips
+            options={[
+              ...(draft.role === 'super_admin' ? [{ value: '', label: t('None') }] : []),
+              ...orderedGroups(groups).map((g) => ({ value: g.id, label: groupPath(groups, g.id), color: g.color })),
+            ]}
+            value={draft.group_id}
+            onChange={(v) => set('group_id', v)}
+            colors={colors}
+          />
+        ) : (
+          <Text style={[styles.hint, { color: colors.warning }]}>{t('Create a department first.')}</Text>
+        )}
         {editing === 'new' ? (
           <>
             <Field label={t('Temporary password')} colors={colors} testID="person-password" value={draft.password} onChangeText={(v) => set('password', v)} autoCapitalize="none" autoCorrect={false} />
@@ -804,6 +896,9 @@ const styles = StyleSheet.create({
   meter: { height: 8, borderRadius: 4, overflow: 'hidden' },
   meterFill: { height: 8, borderRadius: 4 },
   listRow: { borderTopWidth: 1, paddingTop: 11, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  subListRow: { paddingStart: 14 },
+  addSubRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingStart: 40, paddingVertical: 8 },
+  addSubText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   teamSwatch: { width: 12, height: 32, borderRadius: 4 },
   rowTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   rowMeta: { fontSize: 11, lineHeight: 16 },
