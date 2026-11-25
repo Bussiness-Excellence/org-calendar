@@ -53,7 +53,8 @@ async function save(patch: Stored) {
 
 export function PreferencesProvider({ children }: PropsWithChildren) {
   const system = useColorScheme();
-  const [themeMode, setThemeModeState] = useState<ThemeMode>('system');
+  // Dark is the default look until a person picks another in Account or with the moon/sun button.
+  const [themeMode, setThemeModeState] = useState<ThemeMode>('dark');
   const [language, setLanguageState] = useState<Language>(detectLanguage());
   const [reminders, setRemindersState] = useState(true);
   const [ready, setReady] = useState(false);
@@ -63,7 +64,7 @@ export function PreferencesProvider({ children }: PropsWithChildren) {
     void load().then(async (stored) => {
       if (!alive) return;
       const lang = stored.language ?? detectLanguage();
-      setThemeModeState(stored.themeMode ?? 'system');
+      setThemeModeState(stored.themeMode ?? 'dark');
       setRemindersState(stored.reminders ?? true);
       setLanguageState(lang);
       if (applyLanguage(lang)) {
