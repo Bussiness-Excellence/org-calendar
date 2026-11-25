@@ -468,5 +468,16 @@ export const ar: Record<string, string> = {
   "Department or sub-group": "القسم أو المجموعة الفرعية",
   "None": "بلا",
   "Create a department first.": "أنشئ قسمًا أولًا.",
-  "No members yet.": "لا يوجد أعضاء بعد."
+  "No members yet.": "لا يوجد أعضاء بعد.",
+  "Added": "أُضيفت",
+  "{name} · {when}": "{name} · {when}",
+  "Added {when}": "أُضيفت {when}",
+  "Today {time}": "اليوم {time}",
+  "Yesterday {time}": "أمس {time}",
+  "Online now": "متصل الآن",
+  "Last seen {n} min ago": "آخر ظهور منذ {n} د",
+  "Last seen today at {time}": "آخر ظهور اليوم {time}",
+  "Last seen yesterday at {time}": "آخر ظهور أمس {time}",
+  "Last seen {date}": "آخر ظهور {date}",
+  "Not signed in yet": "لم يسجّل الدخول بعد"
 };

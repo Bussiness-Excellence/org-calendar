@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { Platform } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { PresenceProvider } from './presence';
 import { callAdmin, supabase } from './supabase';
 import { APP_NAME, APP_TAGLINE } from './supabase-config';
 import { t } from '@/lib/i18n';
@@ -468,7 +469,13 @@ export function CalendarProvider({ children }: PropsWithChildren) {
     ],
   );
 
-  return <CalendarContext.Provider value={value}>{children}</CalendarContext.Provider>;
+  return (
+    <CalendarContext.Provider value={value}>
+      <PresenceProvider userId={userId} active={active}>
+        {children}
+      </PresenceProvider>
+    </CalendarContext.Provider>
+  );
 }
 
 export function useCalendar(): CalendarContextValue {

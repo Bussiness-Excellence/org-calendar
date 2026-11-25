@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +16,7 @@ import { BrandMark } from '@/components/BrandMark';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { UpgradeCard } from '@/components/UpgradeCard';
 import { eventPalette } from '@/constants/colors';
+import { LastSeenPatch, OnlineDot } from '@/components/Presence';
 import { useColors } from '@/hooks/useColors';
 import {
   initialsFor,
@@ -30,7 +31,7 @@ import { departmentsOf, findGroup, groupPath, inTree, membersOf, orderedGroups, 
 import { pickLogo } from '@/lib/logo-picker';
 import { AdminError, callAdmin, supabase } from '@/lib/supabase';
 import { FREE_USER_LIMIT, UNLIMITED_USER_LIMIT, proYearlyTotal } from '@/lib/supabase-config';
-import { dateLocale, forwardIcon, t, tn } from '@/lib/i18n';
+import { forwardIcon, t, tn } from '@/lib/i18n';
 
 type Colors = ReturnType<typeof useColors>;
 
@@ -529,7 +530,6 @@ interface PersonDraft {
 
 function PeopleSection({ colors }: { colors: Colors }) {
   const { people, groups, org, userId, refresh } = useCalendar();
-  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<CalendarPerson | 'new' | null>(null);
   const [draft, setDraft] = useState<PersonDraft>({ full_name: '', email: '', title: '', role: 'user', group_id: '', password: '' });
@@ -540,12 +540,6 @@ function PeopleSection({ colors }: { colors: Colors }) {
   const [confirm, setConfirm] = useState<'' | 'delete' | 'deactivate'>('');
   const [resetPassword, setResetPassword] = useState('');
 
-  const logins = useQuery({
-    queryKey: ['last-logins', org?.id, people.length],
-    queryFn: async () => (await callAdmin<{ logins: Record<string, string | null> }>('last_logins')).logins,
-    enabled: !!org,
-    staleTime: 5 * 60_000,
-  });
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -579,7 +573,6 @@ function PeopleSection({ colors }: { colors: Colors }) {
 
   const after = async (message: string) => {
     await refresh();
-    void queryClient.invalidateQueries({ queryKey: ['last-logins'] });
     setNotice(message);
     setEditing(null);
   };
@@ -661,6 +654,7 @@ function PeopleSection({ colors }: { colors: Colors }) {
         >
           <View style={[styles.avatar, { backgroundColor: groups.find((g) => g.id === person.group_id)?.color || colors.primary }]}>
             <Text style={styles.avatarText}>{person.initials || initialsFor(person.full_name)}</Text>
+            <OnlineDot personId={person.id} colors={colors} size={12} />
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text numberOfLines={1} style={[styles.rowTitle, { color: colors.foreground }]}>
@@ -674,8 +668,8 @@ function PeopleSection({ colors }: { colors: Colors }) {
             </Text>
             <Text numberOfLines={1} style={[styles.rowMeta, { color: colors.mutedForeground }]}>
               {person.email}
-              {logins.data ? ` · ${logins.data[person.id] ? t('last seen {date}', { date: new Date(logins.data[person.id]!).toLocaleDateString(dateLocale()) }) : t('never signed in')}` : ''}
             </Text>
+            <LastSeenPatch personId={person.id} colors={colors} />
           </View>
           <Feather name={forwardIcon()} size={17} color={colors.mutedForeground} />
         </Pressable>

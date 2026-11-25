@@ -431,5 +431,16 @@ export const fr: Record<string, string> = {
   "Department or sub-group": "Département ou sous-groupe",
   "None": "Aucun",
   "Create a department first.": "Créez d’abord un département.",
-  "No members yet.": "Aucun membre pour l’instant."
+  "No members yet.": "Aucun membre pour l’instant.",
+  "Added": "Ajouté",
+  "{name} · {when}": "{name} · {when}",
+  "Added {when}": "Ajouté {when}",
+  "Today {time}": "Aujourd’hui {time}",
+  "Yesterday {time}": "Hier {time}",
+  "Online now": "En ligne",
+  "Last seen {n} min ago": "Vu il y a {n} min",
+  "Last seen today at {time}": "Vu aujourd’hui à {time}",
+  "Last seen yesterday at {time}": "Vu hier à {time}",
+  "Last seen {date}": "Vu le {date}",
+  "Not signed in yet": "Jamais connecté"
 };

@@ -65,3 +65,59 @@ export function relativeTime(iso: string): string {
   if (diff < 172800) return t('Yesterday');
   return new Intl.DateTimeFormat(dateLocale(), { month: 'short', day: 'numeric' }).format(new Date(then));
 }
+
+const sameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+function clock(date: Date): string {
+  return new Intl.DateTimeFormat(dateLocale(), { hour: 'numeric', minute: '2-digit' }).format(date);
+}
+
+/** When something was registered, in full: "Wed, Nov 25, 2026, 2:40 PM". */
+export function stampLabel(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(dateLocale(), {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+}
+
+/** Compact registration time for lists: "Today 2:40 PM", "Nov 21, 9:05 AM", "Dec 3, 2025". */
+export function shortStampLabel(iso: string | null | undefined, now = Date.now()): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const today = new Date(now);
+  const yesterday = new Date(now);
+  yesterday.setDate(today.getDate() - 1);
+  if (sameDay(date, today)) return t('Today {time}', { time: clock(date) });
+  if (sameDay(date, yesterday)) return t('Yesterday {time}', { time: clock(date) });
+  if (date.getFullYear() === today.getFullYear()) {
+    return new Intl.DateTimeFormat(dateLocale(), { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(date);
+  }
+  return new Intl.DateTimeFormat(dateLocale(), { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
+}
+
+/** "Online now", "Last seen 5 min ago", "Last seen today at 9:10 AM", … */
+export function lastSeenLabel(iso: string | null | undefined, now: number, onlineWindowMs: number): string {
+  if (!iso) return t('Not signed in yet');
+  const then = new Date(iso);
+  const diff = now - then.getTime();
+  if (diff < onlineWindowMs) return t('Online now');
+  if (diff < 3_600_000) return t('Last seen {n} min ago', { n: Math.max(1, Math.floor(diff / 60_000)) });
+  const today = new Date(now);
+  const yesterday = new Date(now);
+  yesterday.setDate(today.getDate() - 1);
+  if (sameDay(then, today)) return t('Last seen today at {time}', { time: clock(then) });
+  if (sameDay(then, yesterday)) return t('Last seen yesterday at {time}', { time: clock(then) });
+  const sameYear = then.getFullYear() === today.getFullYear();
+  return t('Last seen {date}', {
+    date: new Intl.DateTimeFormat(dateLocale(), sameYear ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' }).format(then),
+  });
+}

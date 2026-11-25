@@ -36,16 +36,7 @@ import {
   type CalendarPerson,
   type EventDraft,
 } from '@/lib/calendar-context';
-import {
-  dateTitle,
-  displayTime,
-  localDateString,
-  monthGrid,
-  monthTitle,
-  parseLocalDate,
-  shortDateTitle,
-  weekdayLabels,
-} from '@/lib/calendar-date';
+import { dateTitle, displayTime, localDateString, monthGrid, monthTitle, parseLocalDate, shortDateTitle, shortStampLabel, stampLabel, weekdayLabels } from '@/lib/calendar-date';
 import { eventPalette } from '@/constants/colors';
 import { arrowForward, backIcon, forwardIcon, t, tn } from '@/lib/i18n';
 
@@ -337,6 +328,8 @@ export default function CalendarScreen() {
     people.find((person) => person.id === event.assigned_to)?.full_name ||
     people.find((person) => person.id === event.created_by)?.full_name ||
     t('Unassigned');
+  const creatorName = (event: CalendarEvent) =>
+    people.find((person) => person.id === event.created_by)?.full_name || t('Someone');
   const canReview = (event: CalendarEvent) =>
     event.status === 'pending' &&
     event.created_by !== userId &&
@@ -994,6 +987,7 @@ export default function CalendarScreen() {
                   audience={audienceLabel(targetEvent)}
                   groupColor={groupColor(targetEvent.group_id)}
                   assignedName={personName(targetEvent)}
+                  addedBy={creatorName(targetEvent)}
                   colors={colors}
                 />
               ) : null}
@@ -1280,6 +1274,11 @@ function EventCard({
         <Text numberOfLines={1} style={[styles.eventMeta, { color: colors.mutedForeground }]}>
           {assignedName}
         </Text>
+        {event.created_at ? (
+          <Text numberOfLines={1} style={[styles.eventAdded, { color: colors.mutedForeground }]}>
+            {t('Added {when}', { when: shortStampLabel(event.created_at) })}
+          </Text>
+        ) : null}
       </View>
       <Feather name={forwardIcon()} size={17} color={colors.mutedForeground} />
     </Pressable>
@@ -1670,9 +1669,11 @@ function EventDetails({
   audience,
   groupColor,
   assignedName,
+  addedBy,
   colors,
 }: {
   event: CalendarEvent;
+  addedBy: string;
   groupName: string;
   /** Who can see the event: "Only me", "Everyone", "Department: …" or "Sub-group: …". */
   audience: string;
@@ -1705,6 +1706,13 @@ function EventDetails({
       <InfoRow icon="user" label={t('Assigned to')} value={assignedName} />
       <InfoRow icon="eye" label={t('Visibility')} value={audience} />
       {event.notes ? <InfoRow icon="file-text" label={t('Notes')} value={event.notes} multiline /> : null}
+      {event.created_at ? (
+        <InfoRow
+          icon="edit-3"
+          label={t('Added')}
+          value={t('{name} · {when}', { name: addedBy, when: stampLabel(event.created_at) })}
+        />
+      ) : null}
       {event.rejection_note ? (
         <View style={[styles.rejectionBox, { backgroundColor: colors.accent }]}>
           <Text style={[styles.fieldLabel, { color: colors.destructive }]}>{t('Manager’s note')}</Text>
@@ -1829,6 +1837,7 @@ const styles = StyleSheet.create({
   eventNameLine: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   eventTitle: { flexShrink: 1, fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   eventMeta: { fontSize: 10, lineHeight: 14 },
+  eventAdded: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 2, opacity: 0.85 },
   statusPill: { paddingHorizontal: 6, paddingVertical: 3, borderRadius: 5 },
   statusText: { fontSize: 9, fontFamily: 'Inter_600SemiBold' },
   scheduleDate: { fontSize: 11, fontFamily: 'Inter_600SemiBold', marginBottom: 7, marginTop: 5 },

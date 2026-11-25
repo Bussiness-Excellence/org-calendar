@@ -11,15 +11,7 @@ import {
   type CalendarGroup,
   type CalendarProfile,
   type OrgSummary, type CalendarPerson } from '@/lib/calendar-context';
-import {
-  dateTitle,
-  displayTime,
-  localDateString,
-  monthGrid,
-  monthTitle,
-  parseLocalDate,
-  shortDateTitle,
-} from '@/lib/calendar-date';
+import { dateTitle, displayTime, localDateString, monthGrid, monthTitle, parseLocalDate, shortDateTitle, shortStampLabel } from '@/lib/calendar-date';
 import { backIcon, dateLocale, forwardIcon, t, tn } from '@/lib/i18n';
 import { usePreferences } from '@/lib/preferences';
 import { TeamMemberList, memberCountLabel } from '@/components/TeamMembers';
@@ -429,7 +421,10 @@ export function DesktopCalendar(props: DesktopCalendarProps) {
                         <View style={[styles.listBar, { backgroundColor: eventColor(e) }]} />
                         <Text style={[styles.listTime, { color: colors.secondaryForeground }]}>{e.time_start ? displayTime(e.time_start) : t('All day')}</Text>
                         <Text numberOfLines={1} style={[styles.listTitle, { color: colors.foreground }]}>{e.title}</Text>
-                        <Text numberOfLines={1} style={[styles.listMeta, { color: colors.mutedForeground }]}>{groupName(e.group_id)} · {personName(e)}</Text>
+                        <Text numberOfLines={1} style={[styles.listMeta, { color: colors.mutedForeground }]}>
+                          {groupName(e.group_id)} · {personName(e)}
+                          {e.created_at ? ` · ${t('Added {when}', { when: shortStampLabel(e.created_at) })}` : ''}
+                        </Text>
                         {e.status === 'pending' ? (
                           <View style={[styles.pill, { backgroundColor: colors.warningSurface }]}>
                             <Text style={[styles.pillText, { color: colors.warning }]}>{t('Pending')}</Text>
@@ -495,6 +490,11 @@ export function DesktopCalendar(props: DesktopCalendarProps) {
                   <Text numberOfLines={1} style={[styles.reviewMeta, { color: colors.mutedForeground }]}>
                     {e.time_start ? `${displayTime(e.time_start)}${e.time_end ? ` – ${displayTime(e.time_end)}` : ''}` : t('All day')} · {groupName(e.group_id)}
                   </Text>
+                  {e.created_at ? (
+                    <Text numberOfLines={1} style={[styles.reviewMeta, { color: colors.mutedForeground, opacity: 0.85 }]}>
+                      {t('Added {when}', { when: shortStampLabel(e.created_at) })}
+                    </Text>
+                  ) : null}
                 </View>
               </Pressable>
             ))

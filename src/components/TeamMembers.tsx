@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { roleLabel, type CalendarGroup, type CalendarPerson } from '@/lib/calendar-context';
 import { findGroup } from '@/lib/departments';
+import { LastSeenPatch, OnlineDot } from './Presence';
 import { t, tn } from '@/lib/i18n';
 
 type Colors = ReturnType<typeof useColors>;
@@ -55,6 +56,7 @@ export function TeamMemberList({
           <>
             <View style={[styles.avatar, compact && styles.avatarCompact, { backgroundColor: color }]}>
               <Text style={[styles.avatarText, compact && styles.avatarTextCompact]}>{initialsOf(person)}</Text>
+              <OnlineDot personId={person.id} colors={colors} size={compact ? 9 : 11} />
             </View>
             <View style={styles.text}>
               <Text numberOfLines={1} style={[styles.name, compact && styles.nameCompact, { color: colors.foreground }]}>
@@ -69,6 +71,7 @@ export function TeamMemberList({
                   {person.title}
                 </Text>
               ) : null}
+              <LastSeenPatch personId={person.id} colors={colors} small={compact} />
             </View>
             {!compact && person.role !== 'user' ? (
               <View style={[styles.tag, { backgroundColor: colors.accent }]}>
@@ -105,7 +108,7 @@ const styles = StyleSheet.create({
   list: { gap: 8 },
   listCompact: { gap: 2, paddingStart: 14, paddingEnd: 4, paddingBottom: 6 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 40, borderRadius: 8 },
-  rowCompact: { minHeight: 34, gap: 8 },
+  rowCompact: { minHeight: 34, gap: 8, paddingVertical: 3 },
   avatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   avatarCompact: { width: 24, height: 24, borderRadius: 12 },
   avatarText: { color: '#FFFFFF', fontSize: 12, fontFamily: 'Inter_700Bold' },
