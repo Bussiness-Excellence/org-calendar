@@ -22,6 +22,7 @@ import { DesktopCalendar } from '@/components/DesktopCalendar';
 import { NotificationsBell } from '@/components/NotificationsBell';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { TimeField, TimePanel, oneHourLater } from '@/components/TimePicker';
+import { TeamMemberList, memberCountLabel, teamMembers } from '@/components/TeamMembers';
 import { useColors } from '@/hooks/useColors';
 import {
   canEditEvent,
@@ -369,6 +370,7 @@ export default function CalendarScreen() {
           profile={profile}
           showAdmin={elevated || !!org?.is_platform_admin}
           groups={elevated ? groups : groups.filter((group) => group.id === profile?.group_id)}
+          people={people}
           events={visibleEvents}
           groupFilter={groupFilter}
           setGroupFilter={setGroupFilter}
@@ -685,10 +687,10 @@ export default function CalendarScreen() {
             {groups.map((group) => (
               <FilterChip
                 key={group.id}
-                label={group.name}
+                label={`${group.name} · ${teamMembers(people, group.id).length}`}
                 color={group.color ?? undefined}
                 selected={groupFilter === group.id}
-                onPress={() => setGroupFilter(group.id)}
+                onPress={() => setGroupFilter(groupFilter === group.id ? null : group.id)}
               />
             ))}
           </ScrollView>
@@ -698,6 +700,21 @@ export default function CalendarScreen() {
             <Text style={[styles.groupLabelText, { color: colors.secondaryForeground }]}>
               {groupName(profile.group_id)}
             </Text>
+          </View>
+        ) : null}
+
+        {elevated && groupFilter ? (
+          <View style={[styles.membersCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.membersHeader}>
+              <View style={[styles.eventDot, { backgroundColor: groupColor(groupFilter) }]} />
+              <Text numberOfLines={1} style={[styles.membersTitle, { color: colors.foreground }]}>
+                {groupName(groupFilter)}
+              </Text>
+              <Text style={[styles.membersCount, { color: colors.mutedForeground }]}>
+                {memberCountLabel(teamMembers(people, groupFilter).length)}
+              </Text>
+            </View>
+            <TeamMemberList members={teamMembers(people, groupFilter)} color={groupColor(groupFilter)} colors={colors} />
           </View>
         ) : null}
 
@@ -1724,6 +1741,10 @@ const styles = StyleSheet.create({
   viewOption: { height: 32, borderRadius: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 7 },
   viewOptionActive: { shadowColor: '#000000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 3, elevation: 1 },
   viewOptionText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  membersCard: { borderWidth: 1, borderRadius: 14, padding: 14, marginBottom: 12, gap: 10 },
+  membersHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  membersTitle: { flex: 1, fontSize: 15, fontFamily: 'Inter_700Bold' },
+  membersCount: { fontSize: 12, fontFamily: 'Inter_500Medium' },
   groupFilters: { gap: 8, paddingRight: 8, alignItems: 'center' },
   filterChip: { maxWidth: 190, minHeight: 32, borderRadius: 17, borderWidth: 1, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 6 },
   filterText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },

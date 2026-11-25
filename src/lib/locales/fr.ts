@@ -372,5 +372,8 @@ export const fr: Record<string, string> = {
   "Change hour": "Changer l’heure",
   "All day (no time)": "Toute la journée (sans heure)",
   "Done": "OK",
-  "Leave the times empty for an all-day event.": "Laissez les heures vides pour un événement d’une journée entière."
+  "Leave the times empty for an all-day event.": "Laissez les heures vides pour un événement d’une journée entière.",
+  "{n} member": "{n} membre",
+  "{n} members": "{n} membres",
+  "No members in this team yet.": "Aucun membre dans cette équipe pour le moment."
 };

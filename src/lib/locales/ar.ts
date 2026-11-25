@@ -394,5 +394,13 @@ export const ar: Record<string, string> = {
   "Change hour": "تغيير الساعة",
   "All day (no time)": "طوال اليوم (بدون وقت)",
   "Done": "تم",
-  "Leave the times empty for an all-day event.": "اترك الوقت فارغًا لفعالية تستمر طوال اليوم."
+  "Leave the times empty for an all-day event.": "اترك الوقت فارغًا لفعالية تستمر طوال اليوم.",
+  "{n} member": "عضو واحد",
+  "{n} members": "{n} أعضاء",
+  "{n} members|zero": "لا أعضاء",
+  "{n} members|one": "عضو واحد",
+  "{n} members|two": "عضوان",
+  "{n} members|few": "{n} أعضاء",
+  "{n} members|many": "{n} عضوًا",
+  "No members in this team yet.": "لا يوجد أعضاء في هذا الفريق بعد."
 };

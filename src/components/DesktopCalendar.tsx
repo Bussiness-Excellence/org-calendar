@@ -10,8 +10,7 @@ import {
   type CalendarEvent,
   type CalendarGroup,
   type CalendarProfile,
-  type OrgSummary,
-} from '@/lib/calendar-context';
+  type OrgSummary, type CalendarPerson } from '@/lib/calendar-context';
 import {
   dateTitle,
   displayTime,
@@ -23,6 +22,7 @@ import {
 } from '@/lib/calendar-date';
 import { backIcon, dateLocale, forwardIcon, t, tn } from '@/lib/i18n';
 import { usePreferences } from '@/lib/preferences';
+import { TeamMemberList, memberCountLabel, teamMembers } from '@/components/TeamMembers';
 
 type Colors = ReturnType<typeof useColors>;
 type Mode = 'month' | 'week' | 'list';
@@ -32,6 +32,8 @@ export interface DesktopCalendarProps {
   profile: CalendarProfile | null;
   showAdmin: boolean;
   groups: CalendarGroup[];
+  /** Everyone in the organization, for the member counts and lists in the sidebar. */
+  people: CalendarPerson[];
   /** Events this person may see, already filtered by the selected team. */
   events: CalendarEvent[];
   groupFilter: string | null;
@@ -83,7 +85,7 @@ export function DesktopCalendar(props: DesktopCalendarProps) {
   const { setThemeMode } = usePreferences();
   const [mode, setMode] = useState<Mode>('month');
   const {
-    org, profile, showAdmin, groups, events, groupFilter, setGroupFilter, cursor, setCursor,
+    org, profile, showAdmin, groups, people, events, groupFilter, setGroupFilter, cursor, setCursor,
     selectedDate, setSelectedDate, reviewQueue, approvalsOn, busy, banner,
     onNewEvent, onOpenEvent, onApprove, onSendBack, onBellOpen, eventColor, groupName, personName,
   } = props;
@@ -148,13 +150,6 @@ export function DesktopCalendar(props: DesktopCalendarProps) {
     mode === 'week'
       ? `${shortDateTitle(localDateString(weekDays[0]))} – ${shortDateTitle(localDateString(weekDays[6]))}`
       : monthTitle(cursor);
-
-  const groupCounts = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const e of events) if (inMonth(e)) m.set(e.group_id, (m.get(e.group_id) ?? 0) + 1);
-    return m;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events, cursor]);
 
   const selectedEvents = byDate.get(selectedDate) ?? [];
 
@@ -250,19 +245,30 @@ export function DesktopCalendar(props: DesktopCalendarProps) {
             <Feather name="grid" size={14} color={colors.primary} />
             <Text numberOfLines={1} style={[styles.groupName, { color: colors.foreground }]}>{t('All teams')}</Text>
           </Pressable>
-          {groups.map((g) => (
-            <Pressable
-              key={g.id}
-              onPress={() => setGroupFilter(groupFilter === g.id ? null : g.id)}
-              style={[styles.groupRow, groupFilter === g.id && { backgroundColor: colors.accent }]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: groupFilter === g.id }}
-            >
-              <View style={[styles.groupDot, { backgroundColor: g.color || colors.primary }]} />
-              <Text numberOfLines={1} style={[styles.groupName, { color: colors.foreground }]}>{g.name}</Text>
-              <Text style={[styles.groupCount, { color: colors.mutedForeground }]}>{groupCounts.get(g.id) ?? 0}</Text>
-            </Pressable>
-          ))}
+          {groups.map((g) => {
+            const members = teamMembers(people, g.id);
+            const open = groupFilter === g.id;
+            return (
+              <View key={g.id}>
+                <Pressable
+                  onPress={() => setGroupFilter(open ? null : g.id)}
+                  style={[styles.groupRow, open && { backgroundColor: colors.accent }]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: open, expanded: open }}
+                  accessibilityLabel={`${g.name}, ${memberCountLabel(members.length)}`}
+                >
+                  <View style={[styles.groupDot, { backgroundColor: g.color || colors.primary }]} />
+                  <Text numberOfLines={1} style={[styles.groupName, { color: colors.foreground }]}>{g.name}</Text>
+                  <View style={styles.memberCount}>
+                    <Feather name="users" size={12} color={colors.mutedForeground} />
+                    <Text style={[styles.groupCount, { color: colors.mutedForeground }]}>{members.length}</Text>
+                  </View>
+                  <Feather name={open ? 'chevron-up' : 'chevron-down'} size={14} color={colors.mutedForeground} />
+                </Pressable>
+                {open ? <TeamMemberList members={members} color={g.color || colors.primary} colors={colors} compact /> : null}
+              </View>
+            );
+          })}
         </ScrollView>
 
         {/* Main area */}
@@ -525,6 +531,7 @@ const styles = StyleSheet.create({
   groupDot: { width: 9, height: 9, borderRadius: 5 },
   groupName: { flex: 1, fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   groupCount: { fontSize: 12, fontFamily: 'Inter_500Medium' },
+  memberCount: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   main: { flex: 1 },
   mainContent: { padding: 16, gap: 12 },
   chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
